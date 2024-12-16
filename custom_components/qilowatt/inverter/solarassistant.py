@@ -2,7 +2,7 @@ import logging
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
-from qilowatt import EnergyData, MetricsData
+from qilowatt import EnergyData, MetricsData, WorkModeCommand
 
 from .base_inverter import BaseInverter
 
@@ -130,3 +130,104 @@ class SolarAssistantInverter(BaseInverter):
             BatteryTemperature=battery_temperature,
             InverterTemperature=inverter_temperature,
         )
+    
+    async def set_mode(self, command: WorkModeCommand):
+        """Control the inverter based on the received WorkModeCommand."""
+        _LOGGER.debug(f"Controlling Inverter with WorkModeCommand: {command}")
+
+        if command.Mode == "buy":
+            # Turn on switch.grid_charge_point_[1-5]
+            for i in range(1, 5):
+                await self.hass.services.async_call(
+                    "switch",
+                    "turn_on",
+                    {"entity_id": f"switch.grid_charge_point_{i}"},
+                    blocking=True,
+                )
+
+            # Set number.capacity_point_[1-5] to 100
+            for i in range(1, 5):
+                await self.hass.services.async_call(
+                    "number",
+                    "set_value",
+                    {
+                        "entity_id": f"number.capacity_point_{i}",
+                        "value": 100,
+                    },
+                    blocking=True,
+                )
+
+            # Set number.max_grid_charge_current to command.ChargeCurrent
+            await self.hass.services.async_call(
+                "number",
+                "set_value",
+                {
+                    "entity_id": "number.max_grid_charge_current",
+                    "value": command.ChargeCurrent,
+                },
+                blocking=True,
+            )
+
+            # Set select.work_mode to "Zero export to CT"
+            await self.hass.services.async_call(
+                "select",
+                "select_option",
+                {
+                    "entity_id": "select.work_mode",
+                    "option": "Zero export to CT",
+                },
+                blocking=True,
+            )
+
+        if command.Mode == "sell":
+            # Turn off switch.grid_charge_point_[1-5]
+            for i in range(1, 5):
+                await self.hass.services.async_call(
+                    "switch",
+                    "turn_off",
+                    {"entity_id": f"switch.grid_charge_point_{i}"},
+                    blocking=True,
+                )
+            
+            # set number.capacity_point_[1-5] to 10
+            for i in range(1, 5):
+                await self.hass.services.async_call(
+                    "number",
+                    "set_value",
+                    {
+                        "entity_id": f"number.capacity_point_{i}",
+                        "value": 10,
+                    },
+                    blocking=True,
+                )
+
+            # Set number.max_discharge_current to command.DischargeCurrent
+            await self.hass.services.async_call(
+                "number",
+                "set_value",
+                {
+                    "entity_id": "number.max_discharge_current",
+                    "value": command.DischargeCurrent,
+                },
+                blocking=True,
+            )
+
+            # Set select.work_mode to "Selling first"
+            await self.hass.services.async_call(
+                "select",
+                "select_option",
+                {
+                    "entity_id": "select.work_mode",
+                    "option": "Selling first",
+                },
+                blocking=True,
+            )
+        
+        if command.Mode == "normal":
+            # Turn off switch.grid_charge_point_[1-5]
+            for i in range(1, 5):
+                await self.hass.services.async_call(
+                    "switch",
+                    "turn_off",
+                    {"entity_id": f"switch
+

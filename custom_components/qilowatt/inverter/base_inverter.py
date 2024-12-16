@@ -1,6 +1,7 @@
 # custom_components/qilowatt/inverter/base_inverter.py
 
 from abc import ABC, abstractmethod
+from qilowatt import WorkModeCommand
 
 
 class BaseInverter(ABC):
@@ -18,4 +19,9 @@ class BaseInverter(ABC):
     @abstractmethod
     def get_metrics_data(self):
         """Retrieve METRICS data."""
+        pass
+
+    @abstractmethod
+    def set_mode(self, command: WorkModeCommand):
+        """Control the inverter."""
         pass
