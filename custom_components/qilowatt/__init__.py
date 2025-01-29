@@ -5,7 +5,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 
 from . import sensor
-from .const import DATA_CLIENT, DOMAIN
+from .const import DATA_CLIENT, DOMAIN, CONF_BATTERY_SOC_SENSOR
 from .mqtt_client import MQTTClient
 
 _LOGGER = logging.getLogger(__name__)
