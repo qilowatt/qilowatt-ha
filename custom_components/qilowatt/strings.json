@@ -6,9 +6,11 @@
                     "mqtt_username": "MQTT Username",
                     "mqtt_password": "MQTT Password",
                     "inverter_id": "Qilowatt Inverter ID",
-                    "device_id": "Inverter"
+                    "device_id": "Inverter",
+                    "battery_soc_sensor": "Sofar - Battery SoC Sensor Entity (if using the default sensor, no action is required; if using a custom sensor, ensure the range is between 0 and 1, e.g., 0.1, 0.5, etc.)",
+                    "grid_export_limit": "Sofar - Grid Export Limit (W)"
                 },
-                "description": "Get the username, password and inverter ID from Qilowatt. Select a detected inverter."
+                "description": "Get the username, password and inverter ID from Qilowatt. Select a detected inverter. Optionally, specify a custom Battery SoC Sensor entity and Grid Export Limit."
             }
         }
     }
