@@ -80,4 +80,10 @@ class QilowattConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         "name": device.name,
                         "inverter_integration": "Sofar",
                     }
+                if domain == "huawei_solar":
+                    # Huawei inverter integration
+                    inverters[device.id] = {
+                        "name": device.name,
+                        "inverter_integration": "Huawei",
+                    }
         return inverters
