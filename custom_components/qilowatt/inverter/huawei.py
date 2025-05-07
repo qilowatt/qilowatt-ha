@@ -57,6 +57,15 @@ class HuaweiInverter(BaseInverter):
             _LOGGER.warning(f"State of {entity_id} is unavailable or unknown")
         return default
 
+    def get_state_text(self, entity_id, default=""):
+        """Helper method to get a sensor state as text (for Huawei sensors)."""
+        state = self.find_entity_state(entity_id)
+        if state and state.state not in ("unknown", "unavailable", "", None):
+            return str(state.state)
+        else:
+            _LOGGER.warning(f"State of {entity_id} is unavailable, unknown, or empty")
+        return default
+
     def get_energy_data(self):
         """Retrieve ENERGY data."""
         power = [
@@ -126,11 +135,11 @@ class HuaweiInverter(BaseInverter):
         battery_temperature = [self.get_state_float("battery_1_bms_temperature")]
 
         # Inverter metrics
-        inverter_status = self.get_state_int("inverter_device_status")
+        inverter_status = self.get_state_text("inverter_device_status")
         inverter_temperature = self.get_state_float("inverter_internal_temperature")
 
         # Alarm codes and grid export limit
-        alarm_codes = [self.get_state_int("inverter_alarms")]
+        alarm_codes = [self.get_state_text("inverter_alarms")]
         grid_export_limit = self.get_state_float("inverter_power_derating")
 
         return MetricsData(
