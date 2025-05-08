@@ -41,9 +41,15 @@ class MQTTClient:
     async def start(self):
         """Start the Qilowatt MQTT client."""
         _LOGGER.debug("Starting Qilowatt MQTT client")
+        # Run the blocking initialization in the executor
         if self.qilowatt_client is None:
-            self.initialize_client()
-        self.qilowatt_client.connect()
+            await self.hass.async_add_executor_job(self.initialize_client)
+        # Run the blocking connect in the executor too
+        await self.hass.async_add_executor_job(self.qilowatt_client.connect)
+        
+        # Brief delay to allow connection to establish
+        await asyncio.sleep(2)
+        
         # Start data update loop
         self.hass.loop.create_task(self.update_data_loop())
 
@@ -66,6 +72,9 @@ class MQTTClient:
 
     async def update_data_loop(self):
         """Loop to periodically fetch data and send it to MQTT."""
+        # Initial delay to give MQTT client time to establish connection
+        await asyncio.sleep(5)
+        
         while True:
             try:
                 await self.hass.async_add_executor_job(self.update_data)
@@ -75,6 +84,17 @@ class MQTTClient:
 
     def update_data(self):
         """Fetch data from inverter and send to MQTT."""
+        # Skip if client doesn't exist
+        if not self.qilowatt_client:
+            _LOGGER.debug("MQTT client not initialized, skipping data update")
+            return
+            
+        # Check connection status using the internal _connected attribute
+        # This is how the qilowatt library tracks connection status
+        if not hasattr(self.qilowatt_client, "_connected") or not self.qilowatt_client._connected:
+            _LOGGER.debug("MQTT client not connected, skipping data update")
+            return
+            
         # Fetch latest data from the inverter
         energy_data = self.inverter.get_energy_data()
         metrics_data = self.inverter.get_metrics_data()
