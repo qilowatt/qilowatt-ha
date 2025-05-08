@@ -53,7 +53,6 @@ class HuaweiInverter(BaseInverter):
         
     def get_energy_data(self):
         """Retrieve ENERGY data."""
-        # Collect actual sensor data - no default fallbacks
         power = [
             self.get_state_float("power_meter_phase_a_active_power") * -1,
             self.get_state_float("power_meter_phase_b_active_power") * -1,
@@ -62,7 +61,6 @@ class HuaweiInverter(BaseInverter):
         today = 0
         total = self.get_state_float("power_meter_consumption") * -1
         
-        # Store voltage as self because we might need it for other calculations
         self.voltage = [
             self.get_state_float("power_meter_phase_a_voltage"),
             self.get_state_float("power_meter_phase_b_voltage"),
@@ -77,7 +75,6 @@ class HuaweiInverter(BaseInverter):
         
         frequency = self.get_state_float("power_meter_frequency")
         
-        # Return energy data with actual values
         return EnergyData(
             Power=power,
             Today=today,
@@ -123,12 +120,8 @@ class HuaweiInverter(BaseInverter):
         battery_temperature = [self.get_state_float("battery_1_bms_temperature")]
 
         # Inverter metrics
-        # inverter_status from device status is not used
         inverter_status = 0
         inverter_temperature = self.get_state_float("inverter_internal_temperature")
-
-        # Alarm codes and grid export limit
-        # Using default alarm codes
         alarm_codes = [0]  # As per payload
         grid_export_limit = self.get_state_float("inverter_power_derating")
         
