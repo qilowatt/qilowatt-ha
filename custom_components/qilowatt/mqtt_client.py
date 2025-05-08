@@ -47,9 +47,6 @@ class MQTTClient:
         # Run the blocking connect in the executor too
         await self.hass.async_add_executor_job(self.qilowatt_client.connect)
         
-        # Brief delay to allow connection to establish
-        await asyncio.sleep(2)
-        
         # Start data update loop
         self.hass.loop.create_task(self.update_data_loop())
 
