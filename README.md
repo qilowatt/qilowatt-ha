@@ -8,6 +8,6 @@ The following inverters are currently implemented in this integration:
 - Deye (Solar Assistant)
 - Deye (Solarman) - NB! currently tested with https://github.com/davidrapan/ha-solarman adapted version
 - Sofar (Homeassistant SolaX modbus) - Works only with https://github.com/wills106/homeassistant-solax-modbus
-- Huawei - Requires Huawei Solar integration https://github.com/wlcrs/huawei_solar
+- Huawei - Requires Huawei Solar integration https://github.com/wlcrs/huawei_solar. For Inverter pick any Deye inverter, e.g. Deye HV inverter.
 
 For more information about the Qilowatt service, please visit [Qilowatt](https://qilowatt.eu).

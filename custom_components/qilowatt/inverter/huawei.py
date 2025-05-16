@@ -120,9 +120,9 @@ class HuaweiInverter(BaseInverter):
         battery_temperature = [self.get_state_float("battery_1_bms_temperature")]
 
         # Inverter metrics
-        inverter_status = 0
+        inverter_status = 2  # As per payload
         inverter_temperature = self.get_state_float("inverter_internal_temperature")
-        alarm_codes = [0]  # As per payload
+        alarm_codes = [0, 0, 0, 0, 0, 0]  # As per payload
         grid_export_limit = self.get_state_float("inverter_power_derating")
         
         # Return metrics data with actual values
