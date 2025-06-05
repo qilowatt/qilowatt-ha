@@ -12,7 +12,7 @@ The following inverters are currently implemented in this integration:
 
 ## Modes
 
-        normal - PV to Load and Battery, if PV < Load use Battery.
+        normal - Self use. PV to Load and Battery, if PV < Load use Battery. If battery is full  PV to Load and Grid.
         savebattery - PV to Load and Battery, battery can be charged but no discharge. If PV < Load use Grid.
         pvsell - PV to Load and Grid.     
         sell - PV and Battery to Load and Grid.
