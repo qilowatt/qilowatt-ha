@@ -5,7 +5,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from .const import DOMAIN
 from .inverter import get_inverter_class
-from qilowatt import QilowattMQTTClient, WorkModeCommand
+from qilowatt import QilowattMQTTClient, WorkModeCommand, InverterDevice
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -27,16 +27,19 @@ class MQTTClient:
         # Initialize the inverter
         inverter_class = get_inverter_class(self.inverter_model)
         self.inverter = inverter_class(self.hass, config_entry)
+        self.qw_device = InverterDevice(device_id=self.inverter_id)
 
     def initialize_client(self):
         """Initialize the Qilowatt MQTT client."""
         _LOGGER.debug("Initializing Qilowatt MQTT client")
+
         self.qilowatt_client = QilowattMQTTClient(
             mqtt_username=self.mqtt_username,
             mqtt_password=self.mqtt_password,
-            inverter_id=self.inverter_id,
+            device=self.qw_device,
+            host="test-mqtt.qilowatt.it",
         )
-        self.qilowatt_client.set_command_callback(self._on_command_received)
+        self.qw_device.set_command_callback(self._on_command_received)
 
     async def start(self):
         """Start the Qilowatt MQTT client."""
@@ -88,7 +91,10 @@ class MQTTClient:
             
         # Check connection status using the internal _connected attribute
         # This is how the qilowatt library tracks connection status
-        if not hasattr(self.qilowatt_client, "_connected") or not self.qilowatt_client._connected:
+        if (
+            not hasattr(self.qilowatt_client, "_connected")
+            or not self.qilowatt_client._connected
+        ):
             _LOGGER.debug("MQTT client not connected, skipping data update")
             return
             
@@ -97,5 +103,5 @@ class MQTTClient:
         metrics_data = self.inverter.get_metrics_data()
 
         # Set data in the qilowatt client
-        self.qilowatt_client.set_energy_data(energy_data)
-        self.qilowatt_client.set_metrics_data(metrics_data)
+        self.qw_device.set_energy_data(energy_data)
+        self.qw_device.set_metrics_data(metrics_data)

@@ -3,7 +3,7 @@
     "name": "Qilowatt",
     "version": "1.0.0",
     "documentation": "https://github.com/qilowatt/qilowatt-ha",
-    "requirements": ["qilowatt==2024.02.1"],
+    "requirements": ["qilowatt==2024.2.1.1"],
     "dependencies": [],
     "codeowners": ["@tanelvakker"],
     "config_flow": true,
