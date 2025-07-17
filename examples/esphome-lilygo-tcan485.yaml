@@ -1,0 +1,1281 @@
+substitutions:
+  name: deye                                                       #name in ESPhome
+  device_description: "Esphome component for Deye sun-12k-sg04lp3"   #Description in ESPhome
+  modbus_controller_id: sg04lp3                                      #just a random name for the modbus controler
+  device_type: sun12k                                                #all entities in Home Assistant will start with this text to help identify the entitys
+  skip_updates_fast: "25"
+  skip_updates_moderate: "50"
+  skip_updates_slow: "100"
+
+# The outputs mentioned here are only needed for Lilygo TCAN485
+esphome:
+  name: ${name}
+  friendly_name: Deye
+  on_boot: 
+  - priority: 90
+    then: 
+    - output.turn_on: modbus_en # Enable, aka RE on the MAX13487E - Drive RE high to let the AutoDirection circuit control the receiver
+    - output.turn_on: modbus_se # Not sleep, aka SHDN (shutdown) on the MAX13487E
+    - output.turn_on: modbus_5v # Provide power to the modbus chip (MAX13487E)
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: ""
+
+ota:
+  - platform: esphome
+    password: "your_own_password"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Deye Fallback Hotspot"
+    password: "your_own_password"
+
+captive_portal:
+
+# These are true for Lilygo TCAN 485 in Modebus port with increased baud_rate. Use 9600 if you use BMS port.    
+uart:
+  id: mod_bus
+  tx_pin: 22 
+  rx_pin: 21
+  baud_rate: 115200
+  stop_bits: 1
+
+modbus:
+  id: modbus1
+
+  
+modbus_controller:
+  - id: ${modbus_controller_id}
+    address: 0x1
+    modbus_id: modbus1
+    setup_priority: -10
+    update_interval: 1sec
+    command_throttle: 50ms
+
+button:
+  - platform: restart
+    name: "Deye Esphome Restart"
+
+switch:
+  - platform: modbus_controller
+    use_write_multiple: true
+    modbus_controller_id: ${modbus_controller_id}
+    name: ${device_type}_Solar_sell
+    skip_updates: ${skip_updates_moderate}
+    register_type: holding
+    address: 145
+    bitmask: 1
+    entity_category: config
+    icon: "mdi:toggle-switch"
+ 
+  - platform: modbus_controller
+    use_write_multiple: true
+    modbus_controller_id: ${modbus_controller_id}
+    name: ${device_type}-Grid_Charge
+    skip_updates: ${skip_updates_moderate}
+    register_type: holding
+    address: 130
+    bitmask: 1
+    entity_category: config
+    icon: "mdi:toggle-switch"
+ 
+  - platform: modbus_controller
+    use_write_multiple: true
+    modbus_controller_id: ${modbus_controller_id}
+    name: ${device_type}-Time of Use 
+    id: ${device_type}_Time_of_Use
+    register_type: holding
+    skip_updates: ${skip_updates_moderate}
+    address: 146
+    bitmask: 1
+    entity_category: config
+    icon: "mdi:toggle-switch"
+ 
+  # - platform: modbus_controller  # Time point 1 charge enable - grid charging enable
+  #   use_write_multiple: true
+  #   modbus_controller_id: ${modbus_controller_id}
+  #   name: ${device_type}-Time point 1 charge enable
+  #   register_type: holding
+  #   address: 172
+  #   bitmask: 1   # 2 hvis man ønsker Gen charging enabel i sted for.
+  #   entity_category: config
+  #   icon: "mdi:toggle-switch"
+ 
+  # - platform: modbus_controller  # Time point 2 charge enable - grid charging enable
+  #   use_write_multiple: true
+  #   modbus_controller_id: ${modbus_controller_id}
+  #   name: ${device_type}-Time point 2 charge enable
+  #   register_type: holding
+  #   address: 173
+  #   bitmask: 1    # 2 hvis man ønsker Gen charging enabel i sted for.
+  #   entity_category: config
+  #   icon: "mdi:toggle-switch"
+ 
+  # - platform: modbus_controller  # Time point 3 charge enable - grid charging enable
+  #   use_write_multiple: true
+  #   modbus_controller_id: ${modbus_controller_id}
+  #   name: ${device_type}-Time point 3 charge enable
+  #   register_type: holding
+  #   address: 174
+  #   bitmask: 1    # 2 hvis man ønsker Gen charging enabel i sted for.
+  #   entity_category: config
+  #   icon: "mdi:toggle-switch"
+ 
+  # - platform: modbus_controller  # Time point 4 charge enable - grid charging enable
+  #   use_write_multiple: true
+  #   modbus_controller_id: ${modbus_controller_id}
+  #   name: ${device_type}-Time point 4 charge enable
+  #   register_type: holding
+  #   address: 175
+  #   bitmask: 1
+  #   entity_category: config
+  #   icon: "mdi:toggle-switch"
+ 
+  # - platform: modbus_controller  # Time point 5 charge enable - grid charging enable
+  #   #use_write_multiple: true
+  #   modbus_controller_id: ${modbus_controller_id}
+  #   name: ${device_type}-Time point 5 charge enable
+  #   id: ${device_type}_time_point_5_charge_enable
+  #   register_type: holding
+  #   skip_updates: ${skip_updates_fast}
+  #   address: 176
+  #   bitmask: 1
+  #   entity_category: config
+  #   icon: "mdi:toggle-switch"
+
+  # - platform: modbus_controller  # Time point 5 charge enable - grid charging enable
+  #   #use_write_multiple: true
+  #   modbus_controller_id: ${modbus_controller_id}
+  #   name: ${device_type}-Time point 5 gen charge enable
+  #   id: ${device_type}_time_point_5_gen_charge_enable
+  #   register_type: holding
+  #   skip_updates: ${skip_updates_fast}
+  #   address: 176
+  #   bitmask: 2
+  #   entity_category: config
+  #   icon: "mdi:toggle-switch"
+ 
+  # - platform: modbus_controller  # Time point 6 charge enable - grid charging enable
+  #   use_write_multiple: true
+  #   modbus_controller_id: ${modbus_controller_id}
+  #   name: ${device_type}-Time point 6 charge enable
+  #   register_type: holding
+  #   skip_updates: ${skip_updates_fast}
+  #   address: 177
+  #   bitmask: 1
+  #   entity_category: config
+  #   icon: "mdi:toggle-switch"
+ 
+binary_sensor:
+   - platform: modbus_controller
+     modbus_controller_id: ${modbus_controller_id}
+     skip_updates: ${skip_updates_moderate}
+     name: ${device_type}-AC INV relay # bit 0
+     id: ${device_type}_AC_INV_relay
+     register_type: holding
+     address: 552
+     bitmask: 0x1
+ 
+   - platform: modbus_controller
+     modbus_controller_id: ${modbus_controller_id}
+     skip_updates: ${skip_updates_moderate}
+     name: ${device_type}-AC Load relay Reserved # bit 1
+     id: ${device_type}_AC_Load_relay_Reserved
+     register_type: holding
+     address: 552
+     bitmask: 0x2
+ 
+   - platform: modbus_controller
+     modbus_controller_id: ${modbus_controller_id}
+     skip_updates: ${skip_updates_moderate}
+     name: ${device_type}-AC grid relay # bit 2
+     id: ${device_type}_AC_grid_relay
+     register_type: holding
+     address: 552
+     bitmask: 0x4
+ 
+   - platform: modbus_controller
+     modbus_controller_id: ${modbus_controller_id}
+     skip_updates: ${skip_updates_moderate}
+     name: ${device_type}-AC Generator relay # bit 3
+     id: ${device_type}_AC_Generator_relay
+     register_type: holding
+     address: 552
+     bitmask: 0x8
+ 
+   - platform: modbus_controller
+     modbus_controller_id: ${modbus_controller_id}
+     skip_updates: ${skip_updates_moderate}
+     name: ${device_type}-Turn off/on status
+     id: ${device_type}_Turn_off_on_status
+     register_type: holding
+     address: 551
+     bitmask: 0x1
+ 
+text_sensor:
+   - platform: modbus_controller
+     modbus_controller_id: ${modbus_controller_id}
+     skip_updates: ${skip_updates_moderate}
+     id: ${device_type}_Running_Status
+     bitmask: 0
+     register_type: holding
+     address: 500
+     raw_encode: HEXBYTES
+     name: ${device_type}-Running Status
+     lambda: |-
+       uint16_t value = modbus_controller::word_from_hex_str(x, 0);
+       switch (value) {
+         case 0: return std::string("standby");
+         case 1: return std::string("selfcheck");
+         case 2: return std::string("normal");
+         case 3: return std::string("alarm");
+         case 4: return std::string("fault");
+         default: return std::string("----");
+       }
+       return x;
+
+number:
+  # - platform: modbus_controller
+  #   modbus_controller_id: ${modbus_controller_id}
+  #   id: set_register_178
+  #   name: "Set Register 178"
+  #   register_type: holding
+  #   address: 178
+  #   value_type: U_WORD
+  #   write_lambda: |-
+  #     return x;  // Write modified register value
+  - platform: modbus_controller
+    use_write_multiple: true
+    modbus_controller_id: ${modbus_controller_id}
+    id: ${device_type}_Maximum_battery_charge_current
+    name: "${device_type}-Maximum battery charge current"
+    address: 108
+    unit_of_measurement: A
+    value_type: U_WORD
+    
+  - platform: modbus_controller
+    use_write_multiple: true
+    modbus_controller_id: ${modbus_controller_id}
+    id: ${device_type}_Maximum_battery_discharge_current
+    name: "${device_type}-Maximum battery discharge current"
+    address: 109
+    unit_of_measurement: A
+    value_type: U_WORD
+
+  - platform: modbus_controller
+    use_write_multiple: true
+    modbus_controller_id: ${modbus_controller_id}
+    id: ${device_type}_Maximum_battery_grid_charge_current
+    name: "${device_type}-Maximum battery_grid charge current"
+    address: 128
+    unit_of_measurement: A
+    value_type: U_WORD
+
+  - platform: modbus_controller
+    use_write_multiple: true
+    modbus_controller_id: ${modbus_controller_id}
+    id: ${device_type}_max_solar_sell_power
+    name: "${device_type}-Max Solar Sell Power"
+    unit_of_measurement: W
+    address: 143
+    value_type: U_WORD
+
+  # - platform: modbus_controller
+  #   use_write_multiple: true
+  #   modbus_controller_id: ${modbus_controller_id}
+  #   id: ${device_type}_Time_point_1
+  #   name: "${device_type}-Time point 1 start"
+  #   address: 148
+  #   value_type: U_WORD
+    
+  # - platform: modbus_controller
+  #   use_write_multiple: true
+  #   modbus_controller_id: ${modbus_controller_id}
+  #   id: ${device_type}_Time_point_2
+  #   name: "${device_type}-Time point 2 start"
+  #   address: 149
+  #   value_type: U_WORD
+    
+  # - platform: modbus_controller
+  #   use_write_multiple: true
+  #   modbus_controller_id: ${modbus_controller_id}
+  #   id: ${device_type}_Time_point_3
+  #   name: "${device_type}-Time point 3 start"
+  #   address: 150
+  #   value_type: U_WORD
+    
+  # - platform: modbus_controller
+  #   use_write_multiple: true
+  #   modbus_controller_id: ${modbus_controller_id}
+  #   id: ${device_type}_Time_point_4
+  #   name: "${device_type}-Time point 4 start"
+  #   address: 151
+  #   value_type: U_WORD
+    
+  # - platform: modbus_controller
+  #   use_write_multiple: true
+  #   modbus_controller_id: ${modbus_controller_id}
+  #   id: ${device_type}_Time_point_5
+  #   name: "${device_type}-Time point 5 start"
+  #   address: 152
+  #   value_type: U_WORD
+    
+  # - platform: modbus_controller
+  #   use_write_multiple: true
+  #   modbus_controller_id: ${modbus_controller_id}
+  #   id: ${device_type}_Time_point_6
+  #   name: "${device_type}-Time point 6 start"
+  #   address: 153
+  #   value_type: U_WORD
+    
+  # - platform: modbus_controller
+  #   use_write_multiple: true
+  #   modbus_controller_id: ${modbus_controller_id}
+  #   id: ${device_type}_Time_point_1_power
+  #   name: "${device_type}-Time point 1 power"
+  #   unit_of_measurement: W
+  #   address: 154
+  #   value_type: U_WORD
+    
+  # - platform: modbus_controller
+  #   use_write_multiple: true
+  #   modbus_controller_id: ${modbus_controller_id}
+  #   id: ${device_type}_Time_point_2_power
+  #   name: "${device_type}-Time point 2 power"
+  #   unit_of_measurement: W
+  #   address: 155
+  #   value_type: U_WORD
+    
+  # - platform: modbus_controller
+  #   use_write_multiple: true
+  #   modbus_controller_id: ${modbus_controller_id}
+  #   id: ${device_type}_Time_point_3_power
+  #   name: "${device_type}-Time point 3 power"
+  #   unit_of_measurement: W
+  #   address: 156
+  #   value_type: U_WORD
+    
+  # - platform: modbus_controller
+  #   use_write_multiple: true
+  #   modbus_controller_id: ${modbus_controller_id}
+  #   id: ${device_type}_Time_point_4_power
+  #   name: "${device_type}-Time point 4 power"
+  #   unit_of_measurement: W
+  #   address: 157
+  #   value_type: U_WORD
+    
+  # - platform: modbus_controller
+  #   use_write_multiple: true
+  #   modbus_controller_id: ${modbus_controller_id}
+  #   id: ${device_type}_Time_point_5_power
+  #   name: "${device_type}-Time point 5 power"
+  #   unit_of_measurement: W
+  #   address: 158
+  #   value_type: U_WORD
+    
+  # - platform: modbus_controller
+  #   use_write_multiple: true
+  #   modbus_controller_id: ${modbus_controller_id}
+  #   id: ${device_type}_Time_point_6_power
+  #   name: "${device_type}-Time point 6 power"
+  #   unit_of_measurement: W
+  #   address: 159
+  #   value_type: U_WORD
+
+  # - platform: modbus_controller
+  #   use_write_multiple: true
+  #   modbus_controller_id: ${modbus_controller_id}
+  #   id: ${device_type}_Time_point_1_capacity
+  #   name: "${device_type}-Time point 1 capacity"
+  #   unit_of_measurement: "%"
+  #   address: 166
+  #   min_value: 0
+  #   max_value: 100
+  #   step: 5
+  #   value_type: U_WORD
+    
+  # - platform: modbus_controller
+  #   use_write_multiple: true
+  #   modbus_controller_id: ${modbus_controller_id}
+  #   id: ${device_type}_Time_point_2_capacity
+  #   name: "${device_type}-Time point 2 capacity"
+  #   unit_of_measurement: "%"
+  #   address: 167
+  #   min_value: 0
+  #   max_value: 100
+  #   step: 5
+  #   value_type: U_WORD
+    
+  # - platform: modbus_controller
+  #   use_write_multiple: true
+  #   modbus_controller_id: ${modbus_controller_id}
+  #   id: ${device_type}_Time_point_3_capacity
+  #   name: "${device_type}-Time point 3 capacity"
+  #   unit_of_measurement: "%"
+  #   address: 168
+  #   min_value: 0
+  #   max_value: 100
+  #   step: 5
+  #   value_type: U_WORD
+    
+  # - platform: modbus_controller
+  #   use_write_multiple: true
+  #   modbus_controller_id: ${modbus_controller_id}
+  #   id: ${device_type}_Time_point_4_capacity
+  #   name: "${device_type}-Time point 4 capacity"
+  #   unit_of_measurement: "%"
+  #   address: 169
+  #   min_value: 0
+  #   max_value: 100
+  #   step: 5
+  #   value_type: U_WORD
+    
+  - platform: modbus_controller
+    use_write_multiple: true
+    modbus_controller_id: ${modbus_controller_id}
+    id: ${device_type}_Time_point_5_capacity
+    name: "${device_type}-Time point 5 capacity"
+    unit_of_measurement: "%"
+    address: 170
+    min_value: 0
+    max_value: 100
+    step: 5
+    value_type: U_WORD
+    
+  - platform: modbus_controller
+    use_write_multiple: true
+    modbus_controller_id: ${modbus_controller_id}
+    id: ${device_type}_Time_point_6_capacity
+    name: "${device_type}-Time point 6 capacity"
+    unit_of_measurement: "%"
+    address: 171
+    min_value: 0
+    max_value: 100
+    step: 5
+    value_type: U_WORD
+
+  - platform: modbus_controller
+    use_write_multiple: true
+    modbus_controller_id: ${modbus_controller_id}
+    id: ${device_type}_max_solar_power
+    name: "${device_type}-Max Solar Power"
+    unit_of_measurement: W
+    address: 340
+    value_type: U_WORD
+
+sensor:
+  # - platform: modbus_controller
+  #   modbus_controller_id: ${modbus_controller_id}
+  #   id: register_178
+  #   name: "Register 178"
+  #   skip_updates: ${skip_updates_moderate}
+  #   register_type: holding
+  #   address: 178
+  #   value_type: U_WORD
+  #   internal: true
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    name: "${device_type}-Heat sink temperature"
+    id: ${device_type}_koleplade_temeratur
+    skip_updates: ${skip_updates_moderate}
+    register_type: holding
+    address: 541
+    unit_of_measurement: "°C"
+    value_type: S_WORD
+    accuracy_decimals: 2
+    filters:
+      - offset: -1000
+      - multiply:  0.1
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    name: "${device_type}-load frequency"
+    id: ${device_type}_load_frequency
+    register_type: holding
+    skip_updates: ${skip_updates_fast}
+    address: 655
+    unit_of_measurement: "Hz"
+    state_class: "measurement"
+    accuracy_decimals: 2
+    filters:
+      - multiply: 0.01
+    value_type: U_WORD
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    name: "${device_type}-inverter-total-power"
+    id: ${device_type}_inverter_total_power
+    register_type: holding
+    address: 636
+    unit_of_measurement: "W"
+    state_class: "measurement"
+    accuracy_decimals: 0
+    value_type: S_WORD
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    name: "${device_type}-inverter-frequency"
+    id: ${device_type}_inverter_frequency
+    register_type: holding
+    address: 638
+    unit_of_measurement: "Hz"
+    skip_updates: ${skip_updates_fast}
+    state_class: "measurement"
+    accuracy_decimals: 2
+    filters:
+      - multiply: 0.01
+    value_type: U_WORD
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    name: "${device_type}-PV1 Power"
+    id: ${device_type}_PV1_Power
+    register_type: holding
+    address: 672
+    unit_of_measurement: "W"
+    state_class: "measurement"
+    accuracy_decimals: 0
+    value_type: U_WORD
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    name: "${device_type}-PV2 Power"
+    id: ${device_type}_PV2_Power
+    register_type: holding
+    address: 673
+    unit_of_measurement: "W"
+    state_class: "measurement"
+    accuracy_decimals: 0
+    value_type: U_WORD
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    name: "${device_type}-PV1 Voltage"
+    id: ${device_type}_PV1_Voltage
+    skip_updates: ${skip_updates_moderate}
+    register_type: holding
+    address: 676
+    unit_of_measurement: "V"
+    state_class: "measurement"
+    accuracy_decimals: 0
+    filters:
+      - multiply: 0.1
+    value_type: U_WORD
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    name: "${device_type}-PV2 Voltage"
+    skip_updates: ${skip_updates_moderate}
+    id: ${device_type}_PV2_Voltage
+    register_type: holding
+    address: 678
+    unit_of_measurement: "V"
+    state_class: "measurement"
+    accuracy_decimals: 0
+    filters:
+      - multiply: 0.1
+    value_type: U_WORD
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    name: "${device_type}-PV1 Current"
+    id: ${device_type}_PV1_Current
+    register_type: holding
+    address: 677
+    unit_of_measurement: "A"
+    state_class: "measurement"
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.1
+    value_type: U_WORD
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    name: "${device_type}-PV2 Current"
+    id: ${device_type}_PV2_Current
+    register_type: holding
+    address: 679
+    unit_of_measurement: "A"
+    state_class: "measurement"
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.1
+    value_type: U_WORD  
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    name: "${device_type}-Daily Production"
+    id: ${device_type}_Daily_Production
+    skip_updates: ${skip_updates_moderate}
+    register_type: holding
+    address: 529
+    unit_of_measurement: "kWh"
+    state_class: "total_increasing"
+    device_class: energy
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.1
+    value_type: U_WORD  
+
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    name: "${device_type}-Daily Load Power"
+    id: ${device_type}_Daily_Load_Power
+    skip_updates: ${skip_updates_moderate}
+    register_type: holding
+    address: 526
+    unit_of_measurement: "kWh"
+    state_class: "total_increasing"
+    device_class: energy
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.1
+    value_type: U_WORD  
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    name: "${device_type}-Total PV Production"
+    id: ${device_type}_Total_PV_Production
+    register_type: holding
+    address: 534
+    skip_updates: ${skip_updates_slow}
+    unit_of_measurement: "kWh"
+    state_class: "total_increasing"
+    device_class: energy
+    accuracy_decimals: 1
+    value_type: U_DWORD_R
+    filters:
+      - multiply: 0.1
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    name: "${device_type}-Total Grid Power"
+    id: ${device_type}_Total_Grid_Power
+    register_type: holding
+    address: 625
+    unit_of_measurement: "W"
+    state_class: "measurement"
+    accuracy_decimals: 0
+    value_type: S_WORD
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    skip_updates: ${skip_updates_moderate}
+    name: "${device_type}-Daily Energy Bought"
+    id: ${device_type}_Daily_Energy_Bought
+    register_type: holding
+    address: 520
+    unit_of_measurement: "kWh"
+    state_class: "total_increasing"
+    device_class: energy
+    accuracy_decimals: 1
+    value_type: U_WORD
+    filters:
+      - multiply: 0.1
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    skip_updates: ${skip_updates_moderate}
+    name: "${device_type}-Daily Energy Sold"
+    id: ${device_type}_Daily_Energy_Sold
+    register_type: holding
+    address: 521
+    unit_of_measurement: "kWh"
+    state_class: "total_increasing"
+    device_class: energy
+    accuracy_decimals: 1
+    value_type: U_WORD
+    filters:
+      - multiply: 0.1
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    skip_updates: ${skip_updates_slow}
+    name: "${device_type}-Total Energy Bought"
+    id: ${device_type}_Total_Energy_Bought
+    register_type: holding
+    address: 522
+    unit_of_measurement: "kWh"
+    state_class: "total_increasing"
+    device_class: energy
+    accuracy_decimals: 1
+    value_type: U_WORD
+    filters:
+      - multiply: 0.1
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    skip_updates: ${skip_updates_slow}
+    name: "${device_type}-Total Energy Sold"
+    id: ${device_type}_Total_Energy_Sold
+    register_type: holding
+    address: 524
+    unit_of_measurement: "kWh"
+    state_class: "total_increasing"
+    device_class: energy
+    accuracy_decimals: 1
+    value_type: U_WORD
+    filters:
+      - multiply: 0.1
+ 
+  - platform: modbus_controller #Total Consumption
+    modbus_controller_id: ${modbus_controller_id}
+    skip_updates: ${skip_updates_slow}
+    name: "${device_type}-Total Consumption"
+    id: ${device_type}_Total_Consumption
+    register_type: holding
+    address: 527
+    unit_of_measurement: "kWh"
+    state_class: "total_increasing"
+    device_class: energy
+    accuracy_decimals: 2
+    value_type: U_DWORD_R
+    filters:
+      - multiply: 0.1
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    skip_updates: ${skip_updates_slow}
+    name: "${device_type}-active power generation of today"
+    id: ${device_type}_active_power_generation_of_today
+    register_type: holding
+    address: 502
+    unit_of_measurement: "kWh"
+    state_class: "total_increasing"
+    device_class: energy
+    accuracy_decimals: 1
+    value_type: S_WORD
+    filters:
+      - multiply: 0.1
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    skip_updates: ${skip_updates_fast}
+    name: "${device_type}-Grid Current L1"
+    id: ${device_type}_Grid_Current_L1
+    register_type: holding
+    address: 630
+    unit_of_measurement: "A"
+    state_class: "measurement"
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.01
+    value_type: S_WORD  
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    skip_updates: ${skip_updates_fast}
+    name: "${device_type}-Grid Current L2"
+    id: ${device_type}_Grid_Current_L2
+    register_type: holding
+    address: 631
+    unit_of_measurement: "A"
+    state_class: "measurement"
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.01
+    value_type: S_WORD   
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    skip_updates: ${skip_updates_fast}
+    name: "${device_type}-Grid Current L3"
+    id: ${device_type}_Grid_Current_L3
+    register_type: holding
+    address: 632
+    unit_of_measurement: "A"
+    state_class: "measurement"
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.01
+    value_type: S_WORD   
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    skip_updates: ${skip_updates_fast}
+    name: "${device_type}-Grid Voltage L1"
+    id: ${device_type}_Grid_Voltage_L1
+    register_type: holding
+    address: 598
+    unit_of_measurement: "V"
+    state_class: "measurement"
+    accuracy_decimals: 0
+    filters:
+      - multiply: 0.1
+    value_type: U_WORD     
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    skip_updates: ${skip_updates_fast}
+    name: "${device_type}-Grid Voltage L2"
+    id: ${device_type}_Grid_Voltage_L2
+    register_type: holding
+    address: 599
+    unit_of_measurement: "V"
+    state_class: "measurement"
+    accuracy_decimals: 0
+    filters:
+      - multiply: 0.1
+    value_type: U_WORD     
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    skip_updates: ${skip_updates_fast}
+    name: "${device_type}-Grid Voltage L3"
+    id: ${device_type}_Grid_Voltage_L3
+    register_type: holding
+    address: 600
+    unit_of_measurement: "V"
+    state_class: "measurement"
+    accuracy_decimals: 0
+    filters:
+      - multiply: 0.1
+    value_type: U_WORD  
+
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    skip_updates: ${skip_updates_fast}
+    name: "${device_type}-Internal CT L1 Power"
+    id: ${device_type}_Internal_CT_L1_Power
+    register_type: holding
+    address: 604
+    unit_of_measurement: "W"
+    state_class: "measurement"
+    accuracy_decimals: 0
+    value_type: S_WORD  
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    skip_updates: ${skip_updates_fast}
+    name: "${device_type}-Internal CT L2 Power"
+    id: ${device_type}_Internal_CT_L2_Power
+    register_type: holding
+    address: 605
+    unit_of_measurement: "W"
+    state_class: "measurement"
+    accuracy_decimals: 0
+    value_type: S_WORD  
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    skip_updates: ${skip_updates_fast}
+    name: "${device_type}-Internal CT L3 Power"
+    id: ${device_type}_Internal_CT_L3_Power
+    register_type: holding
+    address: 606
+    unit_of_measurement: "W"
+    state_class: "measurement"
+    accuracy_decimals: 0
+    value_type: S_WORD  
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    skip_updates: ${skip_updates_fast}
+    name: "${device_type}-Internal total Power" 
+    id: ${device_type}_Internal_total_Power
+    register_type: holding
+    address: 607
+    unit_of_measurement: "W"
+    state_class: "measurement"
+    accuracy_decimals: 0
+    value_type: S_WORD   
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    skip_updates: 2
+    name: "${device_type}-External CT L1 Power"
+    id: ${device_type}_External_CT_L1_Power
+    register_type: holding
+    address: 616
+    unit_of_measurement: "W"
+    state_class: "measurement"
+    accuracy_decimals: 0
+    value_type: S_WORD  
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    skip_updates: 2
+    name: "${device_type}-External CT L2 Power"
+    id: ${device_type}_External_CT_L2_Power
+    register_type: holding
+    address: 617
+    unit_of_measurement: "W"
+    state_class: "measurement"
+    accuracy_decimals: 0
+    value_type: S_WORD  
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    skip_updates: 2
+    name: "${device_type}-External CT L3 Power"
+    id: ${device_type}_External_CT_L3_Power
+    register_type: holding
+    address: 618
+    unit_of_measurement: "W"
+    state_class: "measurement"
+    accuracy_decimals: 0
+    value_type: S_WORD     
+ 
+  - platform: modbus_controller  
+    modbus_controller_id: ${modbus_controller_id}
+    name: "${device_type}-Out-of-grid–total power"
+    id: ${device_type}_out_of_grid_total_power
+    register_type: holding
+    address: 619
+    unit_of_measurement: "W"
+    state_class: "measurement"
+    accuracy_decimals: 0
+    value_type: S_WORD
+    
+  - platform: modbus_controller # Load power L1
+    modbus_controller_id: ${modbus_controller_id}
+    name: "${device_type}-Load power L1" 
+    id: ${device_type}_Load_power_l1
+    register_type: holding
+    address: 650
+    unit_of_measurement: "W"
+    state_class: "measurement"
+    accuracy_decimals: 0
+    value_type: S_WORD
+
+  - platform: modbus_controller # Load power L2
+    modbus_controller_id: ${modbus_controller_id}
+    name: "${device_type}-Load power L2" 
+    id: ${device_type}_Load_power_l2
+    register_type: holding
+    address: 651
+    unit_of_measurement: "W"
+    state_class: "measurement"
+    accuracy_decimals: 0
+    value_type: S_WORD
+
+  - platform: modbus_controller # Load power L3
+    modbus_controller_id: ${modbus_controller_id}
+    name: "${device_type}-Load power L3" 
+    id: ${device_type}_Load_power_l3
+    register_type: holding
+    address: 652
+    unit_of_measurement: "W"
+    state_class: "measurement"
+    accuracy_decimals: 0
+    value_type: S_WORD
+
+  - platform: modbus_controller # Load totalpower
+    modbus_controller_id: ${modbus_controller_id}
+    name: "${device_type}-Load totalpower" 
+    id: ${device_type}_Load_totalpower
+    register_type: holding
+    address: 653
+    unit_of_measurement: "W"
+    state_class: "measurement"
+    accuracy_decimals: 0
+    value_type: S_WORD
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    skip_updates: ${skip_updates_moderate}
+    name: "${device_type}-Warning1"
+    id:  ${device_type}_Warning1
+    register_type: holding
+    address: 553
+    accuracy_decimals: 0
+    value_type: U_WORD
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    skip_updates: ${skip_updates_moderate}
+    name: "${device_type}-Warning2"
+    id:  ${device_type}_Warning2
+    register_type: holding
+    address: 554
+    accuracy_decimals: 0
+    value_type: U_WORD
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    skip_updates: ${skip_updates_moderate}
+    name: "${device_type}-Warning3"
+    id:  ${device_type}_Warning3
+    register_type: holding
+    address: 555
+    accuracy_decimals: 0
+    value_type: U_WORD
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    skip_updates: ${skip_updates_moderate}
+    name: "${device_type}-Error1"
+    id:  ${device_type}_Error1
+    register_type: holding
+    address: 556
+    accuracy_decimals: 0
+    value_type: U_WORD
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    skip_updates: ${skip_updates_moderate}
+    name: "${device_type}-Error2"
+    id:  ${device_type}_Error2
+    register_type: holding
+    address: 557
+    accuracy_decimals: 0
+    value_type: U_WORD
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    skip_updates: ${skip_updates_moderate}
+    name: "${device_type}-Error3"
+    id:  ${device_type}_Error3
+    register_type: holding
+    address: 558
+    accuracy_decimals: 0
+    value_type: U_WORD
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    name: "${device_type}-Failure status of communication board"
+    id:  ${device_type}_Failure_status_of_communication_board
+    register_type: holding
+    skip_updates: ${skip_updates_moderate}
+    address: 548
+    accuracy_decimals: 0
+    value_type: U_WORD
+ 
+  # Battery
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    skip_updates: ${skip_updates_slow}
+    name: "${device_type}-Daily charge of the battery"
+    id:  ${device_type}_battery_daily_charge
+    register_type: holding
+    address: 514
+    unit_of_measurement: "kWh"
+    state_class: "total_increasing"
+    device_class: energy
+    accuracy_decimals: 1
+    value_type: S_WORD
+    filters:
+      - multiply: 0.1
+
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    skip_updates: ${skip_updates_slow}
+    name: "${device_type}-Daily discharge of the battery"
+    id:  ${device_type}_battery_daily_discharge
+    register_type: holding
+    address: 515
+    unit_of_measurement: "kWh"
+    state_class: "total_increasing"
+    device_class: energy
+    accuracy_decimals: 1
+    value_type: S_WORD
+    filters:
+      - multiply: 0.1
+
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    skip_updates: ${skip_updates_slow}
+    name: "${device_type}-Total charge of the battery"
+    id:  ${device_type}_battery_total_charge
+    register_type: holding
+    address: 516
+    unit_of_measurement: "kWh"
+    state_class: "total_increasing"
+    device_class: energy
+    accuracy_decimals: 1
+    value_type: U_DWORD_R
+    filters:
+      - multiply: 0.1
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    skip_updates: ${skip_updates_slow}
+    name: "${device_type}-Total discharge of the battery"
+    id:  ${device_type}_battery_total_discharge
+    register_type: holding
+    address: 518
+    unit_of_measurement: "kWh"
+    state_class: "total_increasing"
+    device_class: energy
+    accuracy_decimals: 1
+    value_type: U_DWORD_R 
+    filters:
+      - multiply: 0.1
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    skip_updates: ${skip_updates_moderate}
+    name: "${device_type}-battery temperature"
+    id:  ${device_type}_battery_temperature
+    register_type: holding
+    address: 586
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    value_type: U_WORD 
+    filters:
+      - offset: -1000
+      - multiply: 0.1
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    name: "${device_type}-battery voltage"
+    id: ${device_type}_battery_voltage
+    register_type: holding
+    address: 587  
+    unit_of_measurement: "V"
+    state_class: "measurement"
+    accuracy_decimals: 2
+    filters:
+      - multiply: 0.01
+    value_type: U_WORD
+ 
+  # SOC
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    skip_updates: 2
+    name: "${device_type}-battery capacity"
+    id: ${device_type}_battery_capacity
+    register_type: holding
+    address: 588
+    unit_of_measurement: "%"
+    state_class: "measurement"
+    accuracy_decimals: 1
+    value_type: U_WORD
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    name: "${device_type}-Battery output power"
+    id: ${device_type}_Battery_output_power
+    register_type: holding
+    address: 590
+    unit_of_measurement: "W"
+    state_class: "measurement"
+    accuracy_decimals: 0
+    value_type: S_WORD 
+ 
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    name: "${device_type}-Battery output current"
+    id: ${device_type}_Battery_output_current
+    register_type: holding
+    address: 591
+    unit_of_measurement: "A"
+    state_class: "measurement"
+    accuracy_decimals: 2
+    filters:
+      - multiply: 0.01
+    value_type: S_WORD
+
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    name: "${device_type}-Battery2 output current"
+    id: ${device_type}_Battery2_output_current
+    register_type: holding
+    address: 594
+    unit_of_measurement: "A"
+    state_class: "measurement"
+    accuracy_decimals: 2
+    filters:
+      - multiply: 0.01
+    value_type: S_WORD
+
+  - platform: modbus_controller            # 117 Battery Low Capacity
+    modbus_controller_id: ${modbus_controller_id}
+    name: "${device_type}-Battery Low Capacity"
+    id: ${device_type}_battery_capacity_low
+    register_type: holding
+    address: 117
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
+    device_class: battery
+
+select:
+  # - platform: template
+  #   name: "Grid Peak Shaving"
+  #   id: grid_peak_shaving
+  #   optimistic: true
+  #   options:
+  #     - "Disable"
+  #     - "Enable"
+  #   on_value:
+  #     then:
+  #       - lambda: |-
+  #           uint16_t reg_val = id(register_178).state;
+  #           reg_val &= ~(0b11 << 4);  // Clear bits 4 and 5
+  #           if (id(grid_peak_shaving).state == "Enable") {
+  #             reg_val |= (0b11 << 4);  // Set bits 4 and 5 to enable
+  #           } else {
+  #             reg_val |= (0b10 << 4);  // Set bits 4 and 5 to disable
+  #           }
+  #           id(set_register_178).execute(reg_val);
+  - platform: modbus_controller
+    use_write_multiple: true
+    modbus_controller_id: ${modbus_controller_id}
+    name: ${device_type}-Energy priority
+    address: 141
+    value_type: U_WORD
+    optionsmap:
+      "Battery first": 0
+      "Load first": 1
+
+  - platform: modbus_controller
+    use_write_multiple: true
+    modbus_controller_id: ${modbus_controller_id}
+    name: "${device_type}-Limit control mode"
+    address: 142
+    value_type: U_WORD
+    optionsmap:
+      "Selling first": 0
+      "Zero export to load": 1
+      "Zero export to CT": 2
+
+  - platform: modbus_controller
+    use_write_multiple: true
+    modbus_controller_id: ${modbus_controller_id}
+    name: "${device_type}-Time Point 5 Charge"
+    address: 176
+    value_type: U_WORD
+    optionsmap:
+      "No charge": 0
+      "Grid charge": 1
+      "Gen charge": 2
+      "Grid and Gen charge": 3
+
+  - platform: modbus_controller
+    use_write_multiple: true
+    modbus_controller_id: ${modbus_controller_id}
+    name: "${device_type}-Time Point 6 Charge"
+    address: 177
+    value_type: U_WORD
+    optionsmap:
+      "No charge": 0
+      "Grid charge": 1
+      "Gen charge": 2
+      "Grid and Gen charge": 3
+
+# These outputs are only needed for Lilygo TCAN485
+output:
+- platform: gpio
+  pin: 17
+  id: modbus_en
+- platform: gpio
+  pin: 19
+  id: modbus_se
+- platform: gpio
+  pin: 16
+  id: modbus_5v

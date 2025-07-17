@@ -1,7 +1,7 @@
 {
     "domain": "qilowatt",
     "name": "Qilowatt",
-    "version": "2025.7",
+    "version": "2025.7.1",
     "documentation": "https://github.com/qilowatt/qilowatt-ha",
     "requirements": ["qilowatt==2024.2.1.1"],
     "dependencies": [],

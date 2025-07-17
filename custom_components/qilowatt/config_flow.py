@@ -86,4 +86,9 @@ class QilowattConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         "name": device.name,
                         "inverter_integration": "Huawei",
                     }
+            if "Deye" in device.name and "esp32" in device.model:
+                inverters[device.id] = {
+                    "name": device.name,
+                    "inverter_integration": "EspHome",
+                }
         return inverters
