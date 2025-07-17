@@ -37,7 +37,6 @@ class MQTTClient:
             mqtt_username=self.mqtt_username,
             mqtt_password=self.mqtt_password,
             device=self.qw_device,
-            host="test-mqtt.qilowatt.it",
         )
         self.qw_device.set_command_callback(self._on_command_received)
 
