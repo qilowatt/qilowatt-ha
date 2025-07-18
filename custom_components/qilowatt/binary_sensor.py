@@ -78,13 +78,7 @@ class QilowattConnectionSensor(BinarySensorEntity):
             _LOGGER.debug("Binary sensor initialized with connected state: True")
         else:
             self._attr_is_on = False
-            _LOGGER.debug(
-                "Binary sensor initialized with connected state: False (client: %s, connected: %s)",
-                bool(self.client.qilowatt_client),
-                getattr(self.client.qilowatt_client, "connected", "N/A")
-                if self.client.qilowatt_client
-                else "N/A",
-            )
+            _LOGGER.debug("Binary sensor initialized with connected state: %s", self._attr_is_on)
 
     @callback
     def _handle_connection_update(self, connected: bool) -> None:
