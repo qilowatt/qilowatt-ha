@@ -1,13 +1,12 @@
 {
-    "domain": "qilowatt",
-    "name": "Qilowatt",
-    "version": "2025.7.1",
-    "documentation": "https://github.com/qilowatt/qilowatt-ha",
-    "requirements": ["qilowatt==2024.2.1.1"],
-    "dependencies": [],
-    "codeowners": ["@tanelvakker"],
-    "config_flow": true,
-    "iot_class": "cloud_polling",
-    "integration_type": "hub",
-    "platforms": ["sensor"]
-  }
+  "domain": "qilowatt",
+  "name": "Qilowatt",
+  "codeowners": ["@tanelvakker"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/qilowatt/qilowatt-ha",
+  "integration_type": "hub",
+  "iot_class": "cloud_polling",
+  "requirements": ["qilowatt==2025.7.1"],
+  "version": "2025.7.2"
+}
