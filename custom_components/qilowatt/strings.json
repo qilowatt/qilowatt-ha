@@ -1,15 +1,22 @@
 {
-    "config": {
-        "step": {
-            "user": {
-                "data": {
-                    "mqtt_username": "MQTT Username",
-                    "mqtt_password": "MQTT Password",
-                    "inverter_id": "Qilowatt Inverter ID",
-                    "device_id": "Inverter"
-                },
-                "description": "Get the username, password and inverter ID from Qilowatt. Select a detected inverter."
-            }
-        }
+  "config": {
+    "step": {
+      "user": {
+        "data": {
+          "mqtt_username": "MQTT Username",
+          "mqtt_password": "MQTT Password",
+          "inverter_id": "Qilowatt Inverter ID",
+          "device_id": "Inverter"
+        },
+        "description": "Get the username, password and inverter ID from Qilowatt. Select a detected inverter."
+      }
     }
+  },
+  "entity": {
+    "binary_sensor": {
+      "qw_connected": {
+        "name": "QW Connected"
+      }
+    }
+  }
 }

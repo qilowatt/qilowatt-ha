@@ -7,6 +7,7 @@ This Home Assistant integration allows you to monitor and manage your energy con
 The following inverters are currently implemented in this integration:
 - Deye (Solar Assistant)
 - Deye (Solarman) - NB! currently tested with https://github.com/davidrapan/ha-solarman adapted version
+- Deye (Esphome) - [Example configuration](examples/esphome-lilygo-tcan485.yaml)
 - Sofar (Homeassistant SolaX modbus) - Works only with https://github.com/wills106/homeassistant-solax-modbus
 - Huawei - Requires Huawei Solar integration https://github.com/wlcrs/huawei_solar. For Inverter pick any Deye inverter, e.g. Deye HV inverter.
 
@@ -16,6 +17,7 @@ The following inverters are currently implemented in this integration:
         savebattery - PV to Load and Battery, battery can be charged but no discharge. If PV < Load use Grid.
         pvsell - PV to Load and Grid.     
         sell - PV and Battery to Load and Grid.
+        frrup - Same as sell, but limits PV production to make sure the battery outputs the required amount of energy
         buy - Grid and PV to battery and load. 
         limitexport - Limit export to Grid even battery is full (negative NPS price).
         nobattery -  Disable battery usage (optimizer not using it).
