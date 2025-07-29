@@ -23,9 +23,10 @@ The following inverters are currently implemented in this integration:
         nobattery -  Disable battery usage (optimizer not using it).
 
 ## Source
-        fusebox - mFRR clients must respond to commands. Modes can be buy or sell and Power limit is activated power (always positive value).
+        fusebox - mFRR clients must respond to commands. Modes can be buy or frrup and Power limit is activated power (always positive value).
         optimizer - AI managed commands. Modes can be normal, savebattery, pvsell, sell, buy and limitexport.
         timer - Using manualy created timers. Modes can be normal, savebattery, pvsell, sell, buy, limitexport and nobattery.
+        manual - Manually overwritted commands, Modes can be normal, savebattery, pvsell, sell, buy, limitexport and nobattery.
 
 ## Power limit 
         Always is positive value requested power for command.
