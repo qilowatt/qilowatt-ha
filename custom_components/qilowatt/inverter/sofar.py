@@ -134,7 +134,7 @@ class SofarInverter(BaseInverter):
         battery_current = [self.get_state_float("sofar_battery_current_1")]
         battery_voltage = [self.get_state_float("sofar_battery_voltage_1")]
         inverter_status = 0  # As per payload
-        grid_export_limit = self.grid_export_limit
+        grid_export_limit = self.get_state_float("pv_max_power")
         battery_temperature = [self.get_state_float("sofar_battery_temperature_1")]
         inverter_temperature = self.get_state_float("sofar_inverter_temperature_1")
 
