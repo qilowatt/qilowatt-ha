@@ -9,6 +9,7 @@ The following inverters are currently implemented in this integration:
 - Deye (Solarman) - NB! currently tested with https://github.com/davidrapan/ha-solarman adapted version
 - Deye (Esphome) - [Example configuration](examples/esphome-lilygo-tcan485.yaml)
 - Sofar (Homeassistant SolaX modbus) - Works only with https://github.com/wills106/homeassistant-solax-modbus
+- Sofar (Solarman) - Works with adapted (Pull request pending) https://github.com/davidrapan/ha-solarman (PR: https://github.com/davidrapan/ha-solarman/pull/759/files)
 - Huawei - Requires Huawei Solar integration https://github.com/wlcrs/huawei_solar. For Inverter pick any Deye inverter, e.g. Deye HV inverter.
 
 ## Modes
