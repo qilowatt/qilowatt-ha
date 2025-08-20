@@ -74,6 +74,12 @@ class QilowattConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         "name": device.name,
                         "inverter_integration": "Solarman",
                     }
+                    if device.manufacturer == "Sofar":
+                        # Solarman Sofar inverter integration
+                        inverters[device.id] = {
+                            "name": device.name,
+                            "inverter_integration": "SolarmanSofar",
+                        }
                 if domain == "solax_modbus":
                     # Sofar Modbus inverter integration
                     inverters[device.id] = {

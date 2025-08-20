@@ -1,6 +1,7 @@
 from .huawei import HuaweiInverter
 from .solarassistant import SolarAssistantInverter
 from .solarman import SolarmanInverter
+from .solarman_sofar import SolarmanSofarInverter
 from .sofar import SofarInverter
 from .esphome import EspHomeInverter
 
@@ -11,6 +12,7 @@ INVERTER_INTEGRATIONS = {
     # "Synsynk": SynsynkInverter,
     "SolarAssistant": SolarAssistantInverter,
     "Solarman": SolarmanInverter,
+    "SolarmanSofar": SolarmanSofarInverter,
     "Sofar": SofarInverter,
     "Huawei": HuaweiInverter,
     "EspHome": EspHomeInverter,
