@@ -39,7 +39,7 @@ class HuaweiInverter(BaseInverter):
         state = self.find_entity_state(entity_id)
         if state and state.state not in ("unknown", "unavailable", ""):
             try:
-                return int(float(state.state))
+                return int(float(state.state) // 1)
             except ValueError:
                 pass
         return default
