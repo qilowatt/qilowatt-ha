@@ -12,7 +12,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import async_generate_entity_id
-from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from typing import Callable, Any
 
 from .const import DATA_CLIENT, DOMAIN
 
@@ -22,7 +22,7 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
-    async_add_entities: AddConfigEntryEntitiesCallback,
+    async_add_entities: Callable[[list[Any]], Any],
 ) -> None:
     """Set up the Qilowatt binary sensor platform."""
     client = hass.data[DOMAIN][config_entry.entry_id][DATA_CLIENT]
