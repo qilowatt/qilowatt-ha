@@ -25,7 +25,8 @@ The `qilowatt-ha` integration relies on existing HA integrations to discover and
     -   Via **SolaX Modbus**: Requires the [wills106/homeassistant-solax-modbus](https://github.com/wills106/homeassistant-solax-modbus) integration.
 -   **Huawei:**
     -   Via **Huawei Solar**: Requires the [wlcrs/huawei_solar](https://github.com/wlcrs/huawei_solar) integration.
--   **Victron & others:** Support for other inverters is often added by the community.
+-   **Victron: **
+    -   Via ** Victron for QW**: - Requires https://github.com/mnuxx/victron_qw_addon
 
 ---
 
