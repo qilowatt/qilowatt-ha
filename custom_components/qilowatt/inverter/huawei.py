@@ -24,7 +24,7 @@ class HuaweiInverter(BaseInverter):
         sensor_entity = entity_id if entity_id.startswith("sensor.") else f"sensor.{entity_id}"
         return self.hass.states.get(sensor_entity)
 
-    def get_state_float(self, entity_id, default=0.0):
+    def get_state_float(self, entity_id, default=None):
         """Helper method to get a sensor state as float."""
         state = self.find_entity_state(entity_id)
         if state and state.state not in ("unknown", "unavailable", ""):
@@ -34,12 +34,12 @@ class HuaweiInverter(BaseInverter):
                 pass
         return default
 
-    def get_state_int(self, entity_id, default=0):
+    def get_state_int(self, entity_id, default=None):
         """Helper method to get a sensor state as int."""
         state = self.find_entity_state(entity_id)
         if state and state.state not in ("unknown", "unavailable", ""):
             try:
-                return int(float(state.state))
+                return int(float(state.state) // 1)
             except ValueError:
                 pass
         return default
@@ -53,13 +53,20 @@ class HuaweiInverter(BaseInverter):
         
     def get_energy_data(self):
         """Retrieve ENERGY data."""
+        # Get individual power readings
+        power_a = self.get_state_float("power_meter_phase_a_active_power")
+        power_b = self.get_state_float("power_meter_phase_b_active_power")
+        power_c = self.get_state_float("power_meter_phase_c_active_power")
+        
         power = [
-            self.get_state_float("power_meter_phase_a_active_power") * -1,
-            self.get_state_float("power_meter_phase_b_active_power") * -1,
-            self.get_state_float("power_meter_phase_c_active_power") * -1,
+            power_a * -1 if power_a is not None else None,
+            power_b * -1 if power_b is not None else None,
+            power_c * -1 if power_c is not None else None,
         ]
+        
         today = 0
-        total = self.get_state_float("power_meter_consumption") * -1
+        consumption = self.get_state_float("power_meter_consumption")
+        total = consumption * -1 if consumption is not None else None
         
         self.voltage = [
             self.get_state_float("power_meter_phase_a_voltage"),
@@ -92,10 +99,11 @@ class HuaweiInverter(BaseInverter):
         pv_voltage_2 = self.get_state_float("inverter_pv_2_voltage")
         pv_current_2 = self.get_state_float("inverter_pv_2_current")
         
-        pv_power = [
-            pv_voltage_1 * pv_current_1,
-            pv_voltage_2 * pv_current_2,
-        ]
+        # Calculate PV power, handling None values
+        pv_power_1 = (pv_voltage_1 * pv_current_1) if (pv_voltage_1 is not None and pv_current_1 is not None) else None
+        pv_power_2 = (pv_voltage_2 * pv_current_2) if (pv_voltage_2 is not None and pv_current_2 is not None) else None
+        
+        pv_power = [pv_power_1, pv_power_2]
         
         # Retrieve PV Voltage and Current
         pv_voltage = [pv_voltage_1, pv_voltage_2]
@@ -105,8 +113,8 @@ class HuaweiInverter(BaseInverter):
         inverter_active_power = self.get_state_float("inverter_active_power")
         # Get grid power directly from the sensor
         power_meter_active_power = self.get_state_float("power_meter_active_power")
-        # Load power is inverter output minus grid power
-        load_power_total = inverter_active_power - power_meter_active_power
+        # Load power is inverter output minus grid power - only calculate if both values are available
+        load_power_total = (inverter_active_power - power_meter_active_power) if (inverter_active_power is not None and power_meter_active_power is not None) else None
         load_power = [load_power_total]
         
         # Use fixed load current values
