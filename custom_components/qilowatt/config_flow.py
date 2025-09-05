@@ -86,9 +86,8 @@ class QilowattConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         "name": device.name,
                         "inverter_integration": "Huawei",
                     }
-                # Victron integrations can appear under multiple domains
-                # Commonly via Victron integration or Modbus; also check manufacturer/name
-                if domain == "victron_qw_addon" :
+                if domain == "victron_qw_addon":
+                    # Victron inverter integration
                     inverters[device.id] = {
                         "name": device.name or device_id,
                         "inverter_integration": "Victron",
