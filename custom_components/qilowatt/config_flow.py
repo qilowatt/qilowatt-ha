@@ -31,7 +31,7 @@ class QilowattConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     selected_device_id
                 ]["inverter_integration"]
                 return self.async_create_entry(
-                    title=available_inverters[selected_device_id]["name"],
+                    title=f"{available_inverters[selected_device_id]['name']}",
                     data=user_input,
                 )
 
@@ -88,7 +88,7 @@ class QilowattConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     }
                 # Victron integrations can appear under multiple domains
                 # Commonly via Victron integration or Modbus; also check manufacturer/name
-                if domain in ("victron", "modbus") or (device.manufacturer and "Victron" in device.manufacturer):
+                if domain == "victron_qw_addon" :
                     inverters[device.id] = {
                         "name": device.name or device_id,
                         "inverter_integration": "Victron",
