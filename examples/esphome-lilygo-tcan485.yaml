@@ -29,7 +29,7 @@ logger:
 # Enable Home Assistant API
 api:
   encryption:
-    key: ""
+    key: "your_own_password"
 
 ota:
   - platform: esphome
@@ -51,7 +51,7 @@ uart:
   id: mod_bus
   tx_pin: 22 
   rx_pin: 21
-  baud_rate: 115200
+  baud_rate: 115200 # change this to 9600 is you use BMS port
   stop_bits: 1
 
 modbus:
@@ -71,6 +71,22 @@ button:
     name: "Deye Esphome Restart"
 
 switch:
+  - platform: template  # Grid Peak Shaving Switch
+    name: "${device_type}-Grid Peak Shaving"
+    id: ${device_type}_grid_peak_shaving
+    entity_category: config
+    icon: "mdi:chart-line"
+    lambda: |-
+      uint16_t settings = (uint16_t)id(${device_type}_register_178_control).state;
+      return (settings & 0x10) != 0;  // Check if bit 4 is set
+    turn_on_action:
+      - number.set:
+          id: ${device_type}_register_178_control
+          value: !lambda return (uint16_t)id(${device_type}_register_178_control).state | 0x10;
+    turn_off_action:
+      - number.set:
+          id: ${device_type}_register_178_control
+          value: !lambda return (uint16_t)id(${device_type}_register_178_control).state & ~0x10;
   - platform: modbus_controller
     use_write_multiple: true
     modbus_controller_id: ${modbus_controller_id}
@@ -249,15 +265,13 @@ text_sensor:
        return x;
 
 number:
-  # - platform: modbus_controller
-  #   modbus_controller_id: ${modbus_controller_id}
-  #   id: set_register_178
-  #   name: "Set Register 178"
-  #   register_type: holding
-  #   address: 178
-  #   value_type: U_WORD
-  #   write_lambda: |-
-  #     return x;  // Write modified register value
+  - platform: modbus_controller  # Register 178 Control (for template switches)
+    use_write_multiple: true
+    modbus_controller_id: ${modbus_controller_id}
+    id: ${device_type}_register_178_control
+    address: 178
+    value_type: U_WORD
+    internal: true  # Hide from UI since we use template switches
   - platform: modbus_controller
     use_write_multiple: true
     modbus_controller_id: ${modbus_controller_id}

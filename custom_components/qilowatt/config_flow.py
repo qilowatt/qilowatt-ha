@@ -31,7 +31,7 @@ class QilowattConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     selected_device_id
                 ]["inverter_integration"]
                 return self.async_create_entry(
-                    title=f"{available_inverters[selected_device_id]["name"]}",
+                    title=f"{available_inverters[selected_device_id]['name']}",
                     data=user_input,
                 )
 
@@ -86,7 +86,13 @@ class QilowattConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         "name": device.name,
                         "inverter_integration": "Huawei",
                     }
-            if "Deye" in device.name and "esp32" in device.model:
+                if domain == "victron_qw_addon":
+                    # Victron inverter integration
+                    inverters[device.id] = {
+                        "name": device.name or device_id,
+                        "inverter_integration": "Victron",
+                    }
+            if (device.name and "Deye" in device.name) and (device.model and "esp32" in device.model):
                 inverters[device.id] = {
                     "name": device.name,
                     "inverter_integration": "EspHome",

@@ -9,8 +9,8 @@ from .base_inverter import BaseInverter
 _LOGGER = logging.getLogger(__name__)
 
 
-class SolarmanInverter(BaseInverter):
-    """Implementation for Solarman integrated inverters."""
+class VictronInverter(BaseInverter):
+    """Implementation for Victron cerbo  integrated inverters."""
 
     def __init__(self, hass: HomeAssistant, config_entry):
         super().__init__(hass, config_entry)
@@ -61,19 +61,19 @@ class SolarmanInverter(BaseInverter):
     def get_energy_data(self):
         """Retrieve ENERGY data."""
         power = [
-            self.get_state_float("grid_l1_power"),
-            self.get_state_float("grid_l2_power"),
-            self.get_state_float("grid_l3_power"),
+            self.get_state_float("victron_qw_grid_l1"),
+            self.get_state_float("victron_qw_grid_l2"),
+            self.get_state_float("victron_qw_grid_l3"),
         ]
         today = self.get_state_float("today_energy_import")
         total = 0.0  # As per payload
         voltage = [
-            self.get_state_float("grid_l1_voltage"),
-            self.get_state_float("grid_l2_voltage"),
-            self.get_state_float("grid_l3_voltage"),
+            self.get_state_float("victron_qw_input_voltage_phase_1"),
+            self.get_state_float("victron_qw_input_voltage_phase_2"),
+            self.get_state_float("victron_qw_input_voltage_phase_3"),
         ]
         current = [round(x / y, 2) if y else 0 for x, y in zip(power, voltage)]
-        frequency = self.get_state_float("grid_frequency")
+        frequency = self.get_state_float("victron_qw_grid_frequency")
 
         return EnergyData(
             Power=power,
@@ -87,7 +87,7 @@ class SolarmanInverter(BaseInverter):
     def get_metrics_data(self):
         """Retrieve METRICS data."""
         pv_power = [
-            self.get_state_float("pv1_power"),
+            self.get_state_float("total_pv_power"),
             self.get_state_float("pv2_power"),
         ]
         pv_voltage = [
@@ -99,20 +99,20 @@ class SolarmanInverter(BaseInverter):
             self.get_state_float("pv2_current"),
         ]
         load_power = [
-            self.get_state_float("load_l1_power"),
-            self.get_state_float("load_l2_power"),
-            self.get_state_float("load_l3_power"),
+            self.get_state_float("victron_qw_ac_consumption_l1"),
+            self.get_state_float("victron_qw_ac_consumption_l2"),
+            self.get_state_float("victron_qw_ac_consumption_l3"),
         ]
         alarm_codes = [0, 0, 0, 0, 0, 0]  # As per payload
-        battery_soc = self.get_state_int("_battery")
+        battery_soc = self.get_state_int("victron_qw_battery_state_of_charge")
         load_current = [0.0, 0.0, 0.0]  # As per payload
-        battery_power = [-1 * self.get_state_float("battery_power")]
-        battery_current = [-1 * self.get_state_float("battery_current")]
-        battery_voltage = [self.get_state_float("battery_voltage")]
+        battery_power = [self.get_state_float("victron_qw_battery_power")]
+        battery_current = [self.get_state_float("victron_qw_battery_current")]
+        battery_voltage = [self.get_state_float("victron_qw_battery_voltage")]
         inverter_status = 2  # As per payload
-        grid_export_limit = self.get_state_float("grid_max_export_power")
-        battery_temperature = [self.get_state_float("battery_temperature")]
-        inverter_temperature = self.get_state_float("inverter_temperature")
+        grid_export_limit = self.get_state_float("sell_limit_2")
+        battery_temperature = [self.get_state_float("victron_qw_battery_temperature")]
+        inverter_temperature = self.get_state_float("victron_qw_battery_temperature")
 
         return MetricsData(
             PvPower=pv_power,
