@@ -46,6 +46,12 @@ WORKMODE_FIELDS = {
         "device_class": "power",
         "state_class": "measurement",
     },
+    "MaxPower": {
+        "name": "Max Power",
+        "unit_of_measurement": "W",
+        "device_class": "power",
+        "state_class": "measurement",
+    },
     "ChargeCurrent": {
         "name": "Charge Current",
         "unit_of_measurement": "A",
