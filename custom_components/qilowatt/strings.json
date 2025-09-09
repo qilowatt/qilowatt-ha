@@ -3,12 +3,27 @@
     "step": {
       "user": {
         "data": {
+          "device_type": "Device Type"
+        },
+        "description": "Select the type of device you want to integrate with Qilowatt."
+      },
+      "inverter": {
+        "data": {
           "mqtt_username": "MQTT Username",
           "mqtt_password": "MQTT Password",
-          "inverter_id": "Qilowatt Inverter ID",
+          "qilowatt_device_id": "Qilowatt Device ID",
           "device_id": "Inverter"
         },
-        "description": "Get the username, password and inverter ID from Qilowatt. Select a detected inverter."
+        "description": "Get the username, password and device ID from Qilowatt. Select a detected inverter."
+      },
+      "switch": {
+        "data": {
+          "mqtt_username": "MQTT Username",
+          "mqtt_password": "MQTT Password",
+          "qilowatt_device_id": "Qilowatt Device ID",
+          "device_id": "Switch"
+        },
+        "description": "Get the username, password and device ID from Qilowatt. Select a detected switch."
       }
     }
   },

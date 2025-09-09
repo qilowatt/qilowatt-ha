@@ -103,7 +103,14 @@ class EspHomeInverter(BaseInverter):
             self.get_state_float("_load_power_l2"),
             self.get_state_float("_load_power_l3"),
         ]
-        alarm_codes = [self.get_state_int("_error1"), self.get_state_int("_error2"), self.get_state_int("_error3"), self.get_state_int("_warning1"), self.get_state_int("_warning2"), self.get_state_int("_warning3")]
+        alarm_codes = [
+            self.get_state_int("_error1"),
+            self.get_state_int("_error2"),
+            self.get_state_int("_error3"),
+            self.get_state_int("_warning1"),
+            self.get_state_int("_warning2"),
+            self.get_state_int("_warning3"),
+        ]
         battery_soc = self.get_state_int("_battery_capacity")
         load_current = [0.0, 0.0, 0.0]  # As per payload
         battery_power = [-1 * self.get_state_float("_battery_output_power")]

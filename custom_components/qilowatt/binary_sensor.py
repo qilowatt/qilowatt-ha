@@ -14,7 +14,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import async_generate_entity_id
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import DATA_CLIENT, DOMAIN
+from .const import CONF_DEVICE_MODEL, CONF_QILOWATT_DEVICE_ID, DATA_CLIENT, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -41,7 +41,9 @@ class QilowattConnectionSensor(BinarySensorEntity):
         self.hass = hass
         self.config_entry = config_entry
         self.client = client
-        self._attr_unique_id = f"{config_entry.data['inverter_id']}_qw_connected"
+        self._attr_unique_id = (
+            f"{config_entry.data[CONF_QILOWATT_DEVICE_ID]}_qw_connected"
+        )
         self._attr_translation_key = "qw_connected"
         self._attr_is_on = False
 
@@ -55,14 +57,12 @@ class QilowattConnectionSensor(BinarySensorEntity):
             "identifiers": {(DOMAIN, config_entry.entry_id)},
             "name": config_entry.title,
             "manufacturer": "Qilowatt",
-            "model": config_entry.data.get("inverter_model", "Unknown"),
+            "model": config_entry.data.get(CONF_DEVICE_MODEL, "Unknown"),
         }
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to connection status updates."""
-        signal_name = (
-            f"{DOMAIN}_connection_status_{self.config_entry.data['inverter_id']}"
-        )
+        signal_name = f"{DOMAIN}_connection_status_{self.config_entry.data[CONF_QILOWATT_DEVICE_ID]}"
         _LOGGER.debug("Binary sensor subscribing to signal: %s", signal_name)
         self.async_on_remove(
             async_dispatcher_connect(

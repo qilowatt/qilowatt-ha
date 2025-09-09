@@ -1,4 +1,4 @@
-# custom_components/qilowatt/sensor.py
+"""Sensor platform for Qilowatt integration."""
 
 import logging
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
@@ -8,7 +8,13 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo, async_generate_entity_id
 from qilowatt import WorkModeCommand
 
-from .const import CONF_INVERTER_ID, DATA_CLIENT, DOMAIN
+from .const import (
+    CONF_DEVICE_MODEL,
+    CONF_DEVICE_TYPE,
+    CONF_QILOWATT_DEVICE_ID,
+    DEVICE_TYPE_INVERTER,
+    DOMAIN,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -60,11 +66,16 @@ WORKMODE_FIELDS = {
     },
 }
 
+
 async def async_setup_entry(
     hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities
 ):
     """Set up Qilowatt sensors."""
-    inverter_id = config_entry.data[CONF_INVERTER_ID]
+    # Only set up sensors for inverter device types
+    if config_entry.data.get(CONF_DEVICE_TYPE) != DEVICE_TYPE_INVERTER:
+        return
+
+    device_id = config_entry.data[CONF_QILOWATT_DEVICE_ID]
 
     # Add sensors for WORKMODE commands
     workmode_sensors = []
@@ -78,7 +89,7 @@ async def async_setup_entry(
         )
         sensor = WorkModeSensor(
             hass,
-            inverter_id,
+            device_id,
             entity_description,
             config_entry,
         )
@@ -86,19 +97,29 @@ async def async_setup_entry(
 
     async_add_entities(workmode_sensors, update_before_add=True)
 
+
 class WorkModeSensor(SensorEntity):
     """Sensor for WORKMODE command fields."""
 
-    def __init__(self, hass: HomeAssistant, inverter_id, entity_description: SensorEntityDescription, entry) -> None:
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        device_id,
+        entity_description: SensorEntityDescription,
+        entry,
+    ) -> None:
+        """Initialize the WorkMode sensor."""
         self.hass = hass
-        self._inverter_id = inverter_id
+        self._device_id = device_id
         self.entity_description = entity_description
         self.entry = entry
         self._name = entity_description.name
-        self._unique_id = f"{inverter_id}_{entity_description.key}"
+        self._unique_id = f"{device_id}_{entity_description.key}"
         self._state = None
         self.entity_id = async_generate_entity_id(
-            ENTITY_ID_FORMAT, f"qw_{entity_description.key}", hass.states.async_entity_ids()
+            ENTITY_ID_FORMAT,
+            f"qw_{entity_description.key}",
+            hass.states.async_entity_ids(),
         )
 
     @property
@@ -118,7 +139,7 @@ class WorkModeSensor(SensorEntity):
             identifiers={(DOMAIN, self.entry.entry_id)},
             name=self.entry.title,
             manufacturer="Qilowatt",
-            model=self.entry.data["inverter_model"],
+            model=self.entry.data.get(CONF_DEVICE_MODEL, "Unknown"),
             via_device=(DOMAIN, self.entry.entry_id),
         )
 
@@ -147,14 +168,14 @@ class WorkModeSensor(SensorEntity):
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass,
-                f"{DOMAIN}_workmode_update_{self._inverter_id}",
+                f"{DOMAIN}_workmode_update_{self._device_id}",
                 self._handle_workmode_update,
             )
         )
 
     async def _handle_workmode_update(self, command: WorkModeCommand):
         """Handle WORKMODE command updates."""
-        _LOGGER.debug(f"WorkModeSensor '{self._name}' handling update.")
+        _LOGGER.debug("WorkModeSensor '%s' handling update.", self._name)
         value = getattr(command, self.entity_description.key, None)
         self._state = value
         self.async_schedule_update_ha_state()
