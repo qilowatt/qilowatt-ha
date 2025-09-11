@@ -24,14 +24,14 @@ class SofarInverter(BaseInverter):
 
     def find_entity_state(self, entity_id):
         """Helper method to find a state by entity_id (for Sofar sensors)."""
-        return next(
-            (
-                self.hass.states.get(entity)
-                for entity in self.inverter_entities
-                if entity.endswith(entity_id)
-            ),
-            None,
-        )
+        for entity in self.inverter_entities:
+            if entity.endswith(entity_id):
+                return self.hass.states.get(entity)
+    
+        state = self.hass.states.get(f"sensor.{entity_id}")
+        if state:
+            return state
+        return self.hass.states.get(f"number.{entity_id}")
 
     def get_state_float(self, entity_id, default=0.0):
         """Helper method to get a sensor state as float (for Sofar sensors)."""
@@ -134,7 +134,7 @@ class SofarInverter(BaseInverter):
         battery_current = [self.get_state_float("sofar_battery_current_1")]
         battery_voltage = [self.get_state_float("sofar_battery_voltage_1")]
         inverter_status = 0  # As per payload
-        grid_export_limit = self.grid_export_limit
+        grid_export_limit = self.get_state_float("sofar_feedin_max_power")
         battery_temperature = [self.get_state_float("sofar_battery_temperature_1")]
         inverter_temperature = self.get_state_float("sofar_inverter_temperature_1")
 

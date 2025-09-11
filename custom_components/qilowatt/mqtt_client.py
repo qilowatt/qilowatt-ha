@@ -5,6 +5,7 @@ import logging
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.const import __version__ as HA_VERSION
 
 from qilowatt import InverterDevice, QilowattMQTTClient, WorkModeCommand
 
@@ -33,6 +34,26 @@ class MQTTClient:
         inverter_class = get_inverter_class(self.inverter_model)
         self.inverter = inverter_class(self.hass, config_entry)
         self.qw_device = InverterDevice(device_id=self.inverter_id)
+
+                # Set qw_device version data (convert AwesomeVersion to str)
+        qilowatt_integration = self.hass.data.get("integrations", {}).get(DOMAIN)
+        qilowatt_ha_version = (
+            str(qilowatt_integration.version)
+            if qilowatt_integration and getattr(qilowatt_integration, "version", None)
+            else "unknown"
+        )
+        for requirement in qilowatt_integration.requirements:
+            if requirement.startswith("qilowatt=="):
+                qilowatt_py_version = requirement.split("==")[1]
+                break
+
+        self.qw_device.set_version_data(
+            {
+                "HA": HA_VERSION,
+                "qilowatt-ha": qilowatt_ha_version,
+                "qilowatt-py": qilowatt_py_version,
+            }
+        )
 
     def initialize_client(self):
         """Initialize the Qilowatt MQTT client."""
