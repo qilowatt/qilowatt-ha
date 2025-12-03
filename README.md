@@ -112,13 +112,15 @@ Use the following information from the official README to build your automation 
 -   `savebattery`: PV powers the load and can charge the battery, but the battery will not discharge. The grid is used if PV is insufficient.
 -   `pvsell`: PV powers the load, and all excess is exported to the grid. The battery is not used.
 -   `sell`: Both PV and the Battery are used to power the load and export to the grid.
--   `frrup`: Same as `sell`, but it's a special command from Fusebox that **requires you to limit PV production** to ensure the battery can output the required power.
+-   `frrup`: In this mode you need to set your grid max sell power to PowerLimit and battery output power to max.
+-   `frrdown`: In this mode you need to take energy from grid set by PowerLimit. For Deye, use Grid Peak Shaving for this. Set max battery and grid charge currents to max.
 -   `buy`: Grid and PV are used to charge the battery and power the load.
 -   `limitexport`: Limits export to the grid, even if the battery is full (useful for negative NPS prices).
 -   `nobattery`: Disables battery usage completely.
 
 ### Source
 -   `fusebox`: A command from the mFRR market. **These commands are mandatory and have the highest priority.**
+-   `kratt`: A command from the mFRR market. **These commands are mandatory and have the highest priority.**
 -   `optimizer`: An AI-managed command from the Qilowatt Optimizer.
 -   `timer`: A command from a manually created timer in the Qilowatt UI.
 -   `manual`: A command triggered manually from the Qilowatt UI.
