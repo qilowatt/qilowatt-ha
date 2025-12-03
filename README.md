@@ -111,10 +111,10 @@ Use the following information from the official README to build your automation 
 -   `normal`: Self-use mode. PV powers the load and charges the battery. The battery is used if PV is insufficient. Excess PV is exported to the grid if the battery is full.
 -   `savebattery`: PV powers the load and can charge the battery, but the battery will not discharge. The grid is used if PV is insufficient.
 -   `pvsell`: PV powers the load, and all excess is exported to the grid. The battery is not used.
--   `sell`: Both PV and the Battery are used to power the load and export to the grid.
+-   `sell`: Both PV and the Battery are used to power the load and export to the grid. In this mode set battery max discharge current in accordance to PowerLimit.
 -   `frrup`: In this mode you need to set your grid max sell power to PowerLimit and battery output power to max.
 -   `frrdown`: In this mode you need to take energy from grid set by PowerLimit. For Deye, use Grid Peak Shaving for this. Set max battery and grid charge currents to max.
--   `buy`: Grid and PV are used to charge the battery and power the load.
+-   `buy`: Grid and PV are used to charge the battery and power the load. In this mode set battery max charge and grid charge currents in accordance to PowerLimit.
 -   `limitexport`: Limits export to the grid, even if the battery is full (useful for negative NPS prices).
 -   `nobattery`: Disables battery usage completely.
 
