@@ -14,6 +14,15 @@ _LOGGER = logging.getLogger(__name__)
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
+async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry):
+    """Migrate old config entries to new version."""
+    if config_entry.version == 1:
+        # v2 adds optional secondary_device_ids; absence is handled by .get() defaults
+        hass.config_entries.async_update_entry(config_entry, version=2)
+        _LOGGER.info("Migrated Qilowatt config entry %s from v1 to v2", config_entry.entry_id)
+    return True
+
+
 async def async_setup(hass: HomeAssistant, config: dict):
     """Set up the Qilowatt integration."""
     return True

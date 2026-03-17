@@ -2,6 +2,7 @@ import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.core import callback
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
 
 from .const import (
@@ -10,6 +11,7 @@ from .const import (
     CONF_INVERTER_MODEL,
     CONF_MQTT_PASSWORD,
     CONF_MQTT_USERNAME,
+    CONF_SECONDARY_DEVICE_IDS,
     DOMAIN,
 )
 
@@ -17,27 +19,47 @@ from .const import (
 class QilowattConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Qilowatt Integration."""
 
-    VERSION = 1
+    VERSION = 2
+
+    def __init__(self):
+        """Initialize the config flow."""
+        self._user_input = None
+        self._available_inverters = {}
 
     async def async_step_user(self, user_input=None):
         """Handle the initial step."""
         errors = {}
-        available_inverters = await self._discover_inverters()
+        self._available_inverters = await self._discover_inverters()
+
         if user_input is not None:
-            # Validate the input here if needed
-            if user_input is not None:
-                selected_device_id = user_input["device_id"]
-                user_input[CONF_INVERTER_MODEL] = available_inverters[
-                    selected_device_id
-                ]["inverter_integration"]
-                return self.async_create_entry(
-                    title=f"{available_inverters[selected_device_id]['name']}",
-                    data=user_input,
-                )
+            selected_device_id = user_input["device_id"]
+            inverter_model = self._available_inverters[selected_device_id][
+                "inverter_integration"
+            ]
+            user_input[CONF_INVERTER_MODEL] = inverter_model
+            self._user_input = user_input
+
+            # Check if there are other inverters of the same model
+            remaining = {
+                did: inv
+                for did, inv in self._available_inverters.items()
+                if did != selected_device_id
+                and inv["inverter_integration"] == inverter_model
+            }
+
+            if remaining:
+                return await self.async_step_secondary()
+
+            # No secondary inverters available, create entry directly
+            user_input[CONF_SECONDARY_DEVICE_IDS] = []
+            return self.async_create_entry(
+                title=f"{self._available_inverters[selected_device_id]['name']}",
+                data=user_input,
+            )
 
         inverter_options = {
             device_id: inverter["name"]
-            for device_id, inverter in available_inverters.items()
+            for device_id, inverter in self._available_inverters.items()
         }
 
         data_schema = vol.Schema(
@@ -51,6 +73,43 @@ class QilowattConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="user", data_schema=data_schema, errors=errors
+        )
+
+    async def async_step_secondary(self, user_input=None):
+        """Handle the secondary inverter selection step."""
+        primary_device_id = self._user_input["device_id"]
+        primary_model = self._user_input[CONF_INVERTER_MODEL]
+
+        remaining = {
+            did: inv
+            for did, inv in self._available_inverters.items()
+            if did != primary_device_id
+            and inv["inverter_integration"] == primary_model
+        }
+
+        if user_input is not None:
+            selected = user_input.get(CONF_SECONDARY_DEVICE_IDS, [])
+            self._user_input[CONF_SECONDARY_DEVICE_IDS] = selected
+            return self.async_create_entry(
+                title=f"{self._available_inverters[primary_device_id]['name']}",
+                data=self._user_input,
+            )
+
+        secondary_options = {
+            device_id: inverter["name"]
+            for device_id, inverter in remaining.items()
+        }
+
+        data_schema = vol.Schema(
+            {
+                vol.Optional(CONF_SECONDARY_DEVICE_IDS): cv.multi_select(
+                    secondary_options
+                ),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="secondary", data_schema=data_schema, errors={}
         )
 
     async def _discover_inverters(self):
