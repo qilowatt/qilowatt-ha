@@ -7,9 +7,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.const import __version__ as HA_VERSION
 
-from qilowatt import InverterDevice, QilowattMQTTClient, WorkModeCommand
+from qilowatt import EnergyData, InverterDevice, MetricsData, QilowattMQTTClient, WorkModeCommand
 
-from .const import DOMAIN
+from .const import CONF_SECONDARY_DEVICE_IDS, DOMAIN
 from .inverter import get_inverter_class
 
 _LOGGER = logging.getLogger(__name__)
@@ -30,9 +30,18 @@ class MQTTClient:
 
         self.qilowatt_client = None  # Will be initialized later
 
-        # Initialize the inverter
+        # Initialize the primary inverter
         inverter_class = get_inverter_class(self.inverter_model)
         self.inverter = inverter_class(self.hass, config_entry)
+
+        # Initialize secondary inverters
+        self.secondary_inverters = []
+        for secondary_device_id in config_entry.data.get(CONF_SECONDARY_DEVICE_IDS, []):
+            secondary = inverter_class(
+                self.hass, config_entry, device_id=secondary_device_id
+            )
+            self.secondary_inverters.append(secondary)
+
         self.qw_device = InverterDevice(device_id=self.inverter_id)
 
                 # Set qw_device version data (convert AwesomeVersion to str)
@@ -132,10 +141,102 @@ class MQTTClient:
             _LOGGER.debug("MQTT client not connected, skipping data update")
             return
 
-        # Fetch latest data from the inverter
+        # Fetch latest data from the primary inverter
         energy_data = self.inverter.get_energy_data()
         metrics_data = self.inverter.get_metrics_data()
+
+        # Aggregate with secondary inverters if present
+        if self.secondary_inverters:
+            secondary_energy = []
+            secondary_metrics = []
+            for sec in self.secondary_inverters:
+                try:
+                    secondary_energy.append(sec.get_energy_data())
+                    secondary_metrics.append(sec.get_metrics_data())
+                except Exception as e:  # pylint: disable=broad-except
+                    _LOGGER.error("Error fetching secondary inverter data: %s", e)
+
+            if secondary_energy:
+                energy_data = self._aggregate_energy_data(energy_data, secondary_energy)
+            if secondary_metrics:
+                metrics_data = self._aggregate_metrics_data(
+                    metrics_data, secondary_metrics
+                )
 
         # Set data in the qilowatt client
         self.qw_device.set_energy_data(energy_data)
         self.qw_device.set_metrics_data(metrics_data)
+
+    @staticmethod
+    def _aggregate_energy_data(primary, secondaries):
+        """Aggregate EnergyData from primary and secondary inverters."""
+        power = list(primary.Power)
+        current = list(primary.Current)
+        today = primary.Today
+        total = primary.Total
+
+        for sec in secondaries:
+            for i in range(min(len(power), len(sec.Power))):
+                power[i] += sec.Power[i]
+            for i in range(min(len(current), len(sec.Current))):
+                current[i] += sec.Current[i]
+            today += sec.Today
+            total += sec.Total
+
+        return EnergyData(
+            Power=power,
+            Voltage=list(primary.Voltage),
+            Current=current,
+            Frequency=primary.Frequency,
+            Today=today,
+            Total=total,
+        )
+
+    @staticmethod
+    def _aggregate_metrics_data(primary, secondaries):
+        """Aggregate MetricsData from primary and secondary inverters."""
+        pv_power = list(primary.PvPower)
+        pv_voltage = list(primary.PvVoltage)
+        pv_current = list(primary.PvCurrent)
+        battery_power = list(primary.BatteryPower)
+        battery_current = list(primary.BatteryCurrent)
+        battery_voltage = list(primary.BatteryVoltage)
+        battery_temperature = list(primary.BatteryTemperature)
+        load_power = list(primary.LoadPower)
+        load_current = list(primary.LoadCurrent)
+        grid_export_limit = primary.GridExportLimit
+
+        for sec in secondaries:
+            # Concatenate per-string/per-unit data
+            pv_power.extend(sec.PvPower)
+            pv_voltage.extend(sec.PvVoltage)
+            pv_current.extend(sec.PvCurrent)
+            battery_power.extend(sec.BatteryPower)
+            battery_current.extend(sec.BatteryCurrent)
+            battery_voltage.extend(sec.BatteryVoltage)
+            battery_temperature.extend(sec.BatteryTemperature)
+
+            # Element-wise sum for per-phase data
+            for i in range(min(len(load_power), len(sec.LoadPower))):
+                load_power[i] += sec.LoadPower[i]
+            for i in range(min(len(load_current), len(sec.LoadCurrent))):
+                load_current[i] += sec.LoadCurrent[i]
+
+            grid_export_limit += sec.GridExportLimit
+
+        return MetricsData(
+            PvPower=pv_power,
+            PvVoltage=pv_voltage,
+            PvCurrent=pv_current,
+            BatterySOC=primary.BatterySOC,
+            BatteryPower=battery_power,
+            BatteryCurrent=battery_current,
+            BatteryVoltage=battery_voltage,
+            BatteryTemperature=battery_temperature,
+            LoadPower=load_power,
+            LoadCurrent=load_current,
+            AlarmCodes=list(primary.AlarmCodes),
+            InverterStatus=primary.InverterStatus,
+            InverterTemperature=primary.InverterTemperature,
+            GridExportLimit=grid_export_limit,
+        )
