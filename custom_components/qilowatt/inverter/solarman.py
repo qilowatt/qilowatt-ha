@@ -12,10 +12,10 @@ _LOGGER = logging.getLogger(__name__)
 class SolarmanInverter(BaseInverter):
     """Implementation for Solarman integrated inverters."""
 
-    def __init__(self, hass: HomeAssistant, config_entry):
-        super().__init__(hass, config_entry)
+    def __init__(self, hass: HomeAssistant, config_entry, device_id=None):
+        super().__init__(hass, config_entry, device_id)
         self.hass = hass
-        self.device_id = config_entry.data["device_id"]
+        self.device_id = device_id or config_entry.data["device_id"]
         self.entity_registry = er.async_get(hass)
         self.inverter_entities = {}
         for entity in self.entity_registry.entities.values():

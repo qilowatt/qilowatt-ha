@@ -6,10 +6,10 @@ from .base_inverter import BaseInverter
 class HuaweiInverter(BaseInverter):
     """Implementation for Huawei integrated inverters."""
 
-    def __init__(self, hass: HomeAssistant, config_entry):
-        super().__init__(hass, config_entry)
+    def __init__(self, hass: HomeAssistant, config_entry, device_id=None):
+        super().__init__(hass, config_entry, device_id)
         self.hass = hass
-        self.device_id = config_entry.data["device_id"]
+        self.device_id = device_id or config_entry.data["device_id"]
         # We only need entity registry to get device ID - no need to store entity lists
 
     def find_entity_state(self, entity_id):
