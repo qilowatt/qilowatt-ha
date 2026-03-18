@@ -198,6 +198,7 @@ class MQTTClient:
         pv_power = list(primary.PvPower)
         pv_voltage = list(primary.PvVoltage)
         pv_current = list(primary.PvCurrent)
+        battery_soc = list(primary.BatterySOC)
         battery_power = list(primary.BatteryPower)
         battery_current = list(primary.BatteryCurrent)
         battery_voltage = list(primary.BatteryVoltage)
@@ -211,6 +212,7 @@ class MQTTClient:
             pv_power.extend(sec.PvPower)
             pv_voltage.extend(sec.PvVoltage)
             pv_current.extend(sec.PvCurrent)
+            battery_soc.extend(sec.BatterySOC)
             battery_power.extend(sec.BatteryPower)
             battery_current.extend(sec.BatteryCurrent)
             battery_voltage.extend(sec.BatteryVoltage)
@@ -228,7 +230,7 @@ class MQTTClient:
             PvPower=pv_power,
             PvVoltage=pv_voltage,
             PvCurrent=pv_current,
-            BatterySOC=primary.BatterySOC,
+            BatterySOC=battery_soc,
             BatteryPower=battery_power,
             BatteryCurrent=battery_current,
             BatteryVoltage=battery_voltage,

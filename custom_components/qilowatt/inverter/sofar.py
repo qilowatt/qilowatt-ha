@@ -144,7 +144,7 @@ class SofarInverter(BaseInverter):
             PvCurrent=pv_current,
             LoadPower=load_power,
             AlarmCodes=alarm_codes,
-            BatterySOC=battery_soc,
+            BatterySOC=[battery_soc],
             LoadCurrent=load_current,
             BatteryPower=battery_power,
             BatteryCurrent=battery_current,
