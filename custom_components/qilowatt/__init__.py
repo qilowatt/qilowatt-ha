@@ -3,6 +3,7 @@
 import logging
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 
@@ -12,6 +13,8 @@ from .mqtt_client import MQTTClient
 _LOGGER = logging.getLogger(__name__)
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
+PLATFORMS = [Platform.SENSOR, Platform.BINARY_SENSOR]
 
 
 async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry):
@@ -37,21 +40,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     # Start the client asynchronously
     await client.start()
 
-    # Use the new method and await it
-    await hass.config_entries.async_forward_entry_setups(
-        entry, ["sensor", "binary_sensor"]
-    )
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Unload a Qilowatt config entry."""
-    client = hass.data[DOMAIN][entry.entry_id][DATA_CLIENT]
-    await hass.async_add_executor_job(client.stop)
-    hass.data[DOMAIN].pop(entry.entry_id)
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unload_ok:
+        client = hass.data[DOMAIN].pop(entry.entry_id)[DATA_CLIENT]
+        await client.async_stop()
 
-    await hass.config_entries.async_forward_entry_unload(entry, "sensor")
-    await hass.config_entries.async_forward_entry_unload(entry, "binary_sensor")
-
-    return True
+    return unload_ok
