@@ -49,7 +49,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Unload a Qilowatt config entry."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
-        client = hass.data[DOMAIN].pop(entry.entry_id)[DATA_CLIENT]
+        client = hass.data[DOMAIN][entry.entry_id][DATA_CLIENT]
         await client.async_stop()
+        hass.data[DOMAIN].pop(entry.entry_id, None)
 
     return unload_ok
