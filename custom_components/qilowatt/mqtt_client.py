@@ -126,7 +126,7 @@ class MQTTClient:
             try:
                 await self.hass.async_add_executor_job(self.update_data)
             except Exception as e:  # pylint: disable=broad-except
-                _LOGGER.error("Error updating data: %s", e)
+                _LOGGER.exception("Error updating data: %s", e)
             await asyncio.sleep(10)  # Adjust the interval as needed
 
     def update_data(self):

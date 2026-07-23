@@ -40,8 +40,9 @@ class SolarAssistantInverter(BaseInverter):
         if state and state.state not in ("unknown", "unavailable", ""):
             try:
                 return float(state.state)
-            except ValueError:
+            except (ValueError, TypeError):
                 _LOGGER.warning(f"Could not convert state of {entity_id} to float")
+                return default
         else:
             _LOGGER.warning(f"State of {entity_id} is unavailable or unknown")
         return default
@@ -52,8 +53,9 @@ class SolarAssistantInverter(BaseInverter):
         if state and state.state not in ("unknown", "unavailable", ""):
             try:
                 return int(float(state.state))
-            except ValueError:
+            except (ValueError, TypeError):
                 _LOGGER.warning(f"Could not convert state of {entity_id} to int")
+                return default
         else:
             _LOGGER.warning(f"State of {entity_id} is unavailable or unknown")
         return default
