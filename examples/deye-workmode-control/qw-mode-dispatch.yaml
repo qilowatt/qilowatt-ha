@@ -7,8 +7,10 @@
 # a shared script (scripts.yaml); this automation never touches the inverter
 # directly.
 #
-# Replace sensor.deye_battery_soc with your battery SoC entity (the same one
-# you selected during Qilowatt integration setup works fine).
+# sensor.deye_sun12k_battery_capacity is the battery SoC entity created by the
+# ESPHome example (examples/esphome-lilygo-tcan485.yaml). If you use a
+# different integration (ha-solarman, Solar Assistant, ...), replace it with
+# that integration's battery SoC entity.
 
 - id: qw_mode_dispatch
   alias: "QW: mode dispatch"
@@ -82,7 +84,7 @@
             # PV but will not discharge.
             - action: script.deye_mode_zero_export
               data:
-                capacity: "{{ states('sensor.deye_battery_soc') | int(50) }}"
+                capacity: "{{ states('sensor.deye_sun12k_battery_capacity') | int(50) }}"
 
         - alias: "Nobattery (battery unused)"
           conditions:
@@ -92,7 +94,7 @@
           sequence:
             - action: script.deye_mode_zero_export
               data:
-                capacity: "{{ states('sensor.deye_battery_soc') | int(50) }}"
+                capacity: "{{ states('sensor.deye_sun12k_battery_capacity') | int(50) }}"
                 max_discharge: 0
 
         - alias: "Pvsell (export PV surplus, battery untouched)"
@@ -103,7 +105,7 @@
           sequence:
             - action: script.deye_mode_self_use
               data:
-                capacity: "{{ states('sensor.deye_battery_soc') | int(50) }}"
+                capacity: "{{ states('sensor.deye_sun12k_battery_capacity') | int(50) }}"
                 sell_power: 13000 # ADJUST: inverter rated export power
 
         - alias: "Limitexport (cap export, e.g. negative prices)"

@@ -62,5 +62,5 @@
           QW {{ states('sensor.qw_mode') }}
           ({{ states('sensor.qw_source') }})
           {{ (states('sensor.qw_powerlimit') | int(0) / 1000) | round(1) }} kW,
-          SOC {{ states('sensor.deye_battery_soc') | int(0) }}%
+          SOC {{ states('sensor.deye_sun12k_battery_capacity') | int(0) }}%
   mode: single
