@@ -1,0 +1,195 @@
+# Automation 2: desired-state helpers -> inverter registers.
+#
+# Runs every 10 seconds (and on every helper change), compares each desired
+# value to what the inverter actually reports, and re-sends only the settings
+# that differ. Writes that get lost on the Modbus/dongle link are therefore
+# retried automatically until the inverter confirms them.
+#
+# REPLACE ALL INVERTER ENTITY IDS with the ones your integration exposes:
+#   - ha-solarman / Solar Assistant: select.work_mode,
+#     number.max_discharge_current, number.capacity_point_6,
+#     switch.grid_charge_point_6, ...
+#   - ESPHome (examples/esphome-lilygo-tcan485.yaml): select.deye_limit_control_mode,
+#     number.deye_max_solar_sell_power, switch.deye_grid_peak_shaving, ...
+#
+# NOTE on multiple inverters: if several inverters share one grid connection,
+# duplicate this automation per inverter and write a split share of the power
+# setpoints to each (e.g. desired value / 2 for two identical units).
+
+- id: inverter_desired_state_reconciler
+  alias: "Deye: desired state reconciler"
+  description: >-
+    Pushes the inverter_desired_* helpers to the inverter until the inverter
+    reports the same values back. The 1 s delay after each write gives the
+    integration time to poll the register before the next comparison.
+  triggers:
+    - trigger: time_pattern
+      seconds: /10
+    - trigger: state
+      entity_id:
+        - input_select.inverter_desired_work_mode
+        - input_boolean.inverter_desired_grid_charge
+        - input_boolean.inverter_desired_grid_peak_shaving
+        - input_boolean.inverter_desired_solar_export
+        - input_number.inverter_desired_tou_capacity
+        - input_number.inverter_desired_max_discharge_current
+        - input_number.inverter_desired_max_charge_current
+        - input_number.inverter_desired_max_grid_charge_current
+        - input_number.inverter_desired_max_solar_sell_power
+        - input_number.inverter_desired_grid_peak_shaving_power
+  conditions: []
+  actions:
+    - alias: "Work mode"
+      if:
+        - condition: template
+          value_template: >-
+            {{ states('select.deye_work_mode')
+               != states('input_select.inverter_desired_work_mode') }}
+      then:
+        - action: select.select_option
+          target:
+            entity_id: select.deye_work_mode
+          data:
+            option: "{{ states('input_select.inverter_desired_work_mode') }}"
+        - delay:
+            seconds: 1
+
+    - alias: "Grid charge (TOU time point 6)"
+      if:
+        - condition: template
+          value_template: >-
+            {{ states('switch.deye_grid_charge')
+               != states('input_boolean.inverter_desired_grid_charge') }}
+      then:
+        - action: >-
+            {{ 'switch.turn_on'
+               if is_state('input_boolean.inverter_desired_grid_charge', 'on')
+               else 'switch.turn_off' }}
+          target:
+            entity_id: switch.deye_grid_charge
+        - delay:
+            seconds: 1
+
+    - alias: "Battery capacity floor (TOU time point 6)"
+      if:
+        - condition: template
+          value_template: >-
+            {{ states('number.deye_tou_capacity') | int(-1)
+               != states('input_number.inverter_desired_tou_capacity') | int(-2) }}
+      then:
+        - action: number.set_value
+          target:
+            entity_id: number.deye_tou_capacity
+          data:
+            value: "{{ states('input_number.inverter_desired_tou_capacity') | int }}"
+        - delay:
+            seconds: 1
+
+    - alias: "Max battery discharge current"
+      if:
+        - condition: template
+          value_template: >-
+            {{ states('number.deye_max_discharge_current') | int(-1)
+               != states('input_number.inverter_desired_max_discharge_current') | int(-2) }}
+      then:
+        - action: number.set_value
+          target:
+            entity_id: number.deye_max_discharge_current
+          data:
+            value: "{{ states('input_number.inverter_desired_max_discharge_current') | int }}"
+        - delay:
+            seconds: 1
+
+    - alias: "Max battery charge current"
+      if:
+        - condition: template
+          value_template: >-
+            {{ states('number.deye_max_charge_current') | int(-1)
+               != states('input_number.inverter_desired_max_charge_current') | int(-2) }}
+      then:
+        - action: number.set_value
+          target:
+            entity_id: number.deye_max_charge_current
+          data:
+            value: "{{ states('input_number.inverter_desired_max_charge_current') | int }}"
+        - delay:
+            seconds: 1
+
+    - alias: "Max grid charge current"
+      if:
+        - condition: template
+          value_template: >-
+            {{ states('number.deye_max_grid_charge_current') | int(-1)
+               != states('input_number.inverter_desired_max_grid_charge_current') | int(-2) }}
+      then:
+        - action: number.set_value
+          target:
+            entity_id: number.deye_max_grid_charge_current
+          data:
+            value: "{{ states('input_number.inverter_desired_max_grid_charge_current') | int }}"
+        - delay:
+            seconds: 1
+
+    - alias: "Solar sell"
+      if:
+        - condition: template
+          value_template: >-
+            {{ states('switch.deye_solar_sell')
+               != states('input_boolean.inverter_desired_solar_export') }}
+      then:
+        - action: >-
+            {{ 'switch.turn_on'
+               if is_state('input_boolean.inverter_desired_solar_export', 'on')
+               else 'switch.turn_off' }}
+          target:
+            entity_id: switch.deye_solar_sell
+        - delay:
+            seconds: 1
+
+    - alias: "Max solar sell power"
+      if:
+        - condition: template
+          value_template: >-
+            {{ states('number.deye_max_solar_sell_power') | int(-1)
+               != states('input_number.inverter_desired_max_solar_sell_power') | int(-2) }}
+      then:
+        - action: number.set_value
+          target:
+            entity_id: number.deye_max_solar_sell_power
+          data:
+            value: "{{ states('input_number.inverter_desired_max_solar_sell_power') | int }}"
+        - delay:
+            seconds: 1
+
+    - alias: "Grid peak shaving switch"
+      if:
+        - condition: template
+          value_template: >-
+            {{ states('switch.deye_grid_peak_shaving')
+               != states('input_boolean.inverter_desired_grid_peak_shaving') }}
+      then:
+        - action: >-
+            {{ 'switch.turn_on'
+               if is_state('input_boolean.inverter_desired_grid_peak_shaving', 'on')
+               else 'switch.turn_off' }}
+          target:
+            entity_id: switch.deye_grid_peak_shaving
+        - delay:
+            seconds: 1
+
+    - alias: "Grid peak shaving power"
+      if:
+        - condition: template
+          value_template: >-
+            {{ states('number.deye_grid_peak_shaving_power') | int(-1)
+               != states('input_number.inverter_desired_grid_peak_shaving_power') | int(-2) }}
+      then:
+        - action: number.set_value
+          target:
+            entity_id: number.deye_grid_peak_shaving_power
+          data:
+            value: "{{ states('input_number.inverter_desired_grid_peak_shaving_power') | int }}"
+        - delay:
+            seconds: 1
+  mode: queued
+  max: 10

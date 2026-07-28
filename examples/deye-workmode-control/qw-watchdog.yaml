@@ -1,0 +1,66 @@
+# Failsafe and (optional) notifications.
+#
+# binary_sensor.qw_connected reflects the MQTT connection to the Qilowatt
+# cloud. If it drops, no new WORKMODE commands can arrive, so the inverter
+# would keep running the last commanded state indefinitely — e.g. keep
+# grid-charging at full power forever. After 15 minutes offline we revert to
+# plain self-use as a safe default; Qilowatt re-sends the current WORKMODE
+# when the connection comes back, which re-triggers the dispatch automation.
+
+- id: qw_connection_lost_failsafe
+  alias: "QW: connection lost failsafe"
+  description: >-
+    Revert the inverter to self-use when the Qilowatt connection has been down
+    for 15 minutes, and send an alert.
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.qw_connected
+      to: "off"
+      for:
+        minutes: 15
+  conditions: []
+  actions:
+    - action: script.deye_mode_self_use
+      data:
+        capacity: 20
+        sell_power: 13000 # ADJUST: inverter rated export power
+    - action: persistent_notification.create
+      data:
+        title: "Qilowatt disconnected"
+        message: >-
+          No connection to Qilowatt for 15 minutes — inverter reverted to
+          self-use.
+    # Optional: critical push to your phone (replace with your notify service).
+    # - action: notify.mobile_app_your_phone
+    #   data:
+    #     message: "Qilowatt disconnected — inverter reverted to self-use"
+    #     data:
+    #       push:
+    #         sound:
+    #           name: default
+    #           critical: 1
+    #           volume: 1
+  mode: single
+
+# Optional: push notification on every mode transition, so you can follow
+# mFRR activations live. The short delay lets qw_powerlimit settle before the
+# message is composed.
+
+- id: qw_mode_change_notification
+  alias: "QW: mode change notification"
+  description: "Push a summary on every Qilowatt mode transition."
+  triggers:
+    - trigger: state
+      entity_id: sensor.qw_mode
+  conditions: []
+  actions:
+    - delay:
+        seconds: 5
+    - action: notify.mobile_app_your_phone # ADJUST: your notify service
+      data:
+        message: >-
+          QW {{ states('sensor.qw_mode') }}
+          ({{ states('sensor.qw_source') }})
+          {{ (states('sensor.qw_powerlimit') | int(0) / 1000) | round(1) }} kW,
+          SOC {{ states('sensor.deye_sun12k_battery_capacity') | int(0) }}%
+  mode: single
