@@ -236,7 +236,12 @@ binary_sensor:
    - platform: modbus_controller
      modbus_controller_id: ${modbus_controller_id}
      skip_updates: ${skip_updates_moderate}
-     name: ${device_type}-Turn off/on status
+     # NOTE: the separator here is a SPACE, not "/" or "-". ESPHome sanitizes the
+     # name to an object_id 1:1 per character: "/" and " " both become "_", but
+     # "-" is preserved. So a space keeps the object_id
+     # "sun12k-turn_off_on_status" — and therefore the HA unique_id and
+     # entity_id — byte-identical. "/" became an error in ESPHome 2026.7.
+     name: ${device_type}-Turn off on status
      id: ${device_type}_Turn_off_on_status
      register_type: holding
      address: 551
@@ -253,7 +258,9 @@ text_sensor:
      raw_encode: HEXBYTES
      name: ${device_type}-Running Status
      lambda: |-
-       uint16_t value = modbus_controller::word_from_hex_str(x, 0);
+       // modbus_controller::word_from_hex_str was deprecated in ESPHome 2026.4
+       // and is removed in 2026.10 — use the modbus::helpers:: version.
+       uint16_t value = modbus::helpers::word_from_hex_str(x, 0);
        switch (value) {
          case 0: return std::string("standby");
          case 1: return std::string("selfcheck");
@@ -281,6 +288,20 @@ number:
     address: 178
     value_type: U_WORD
     internal: true  # Hide from UI since we use template switches
+
+  - platform: modbus_controller  # Maintenance helper: manually reset register 178
+    use_write_multiple: true     # if it ends up with a bad/corrupted value
+    modbus_controller_id: ${modbus_controller_id}
+    id: ${device_type}_register_178_reset
+    name: "${device_type}-Register 178 Reset (Signed)"
+    address: 178
+    value_type: S_WORD
+    min_value: -32768
+    max_value: 32767
+    step: 1
+    entity_category: config
+    icon: "mdi:wrench"
+    mode: box  # Allows typing exact values
 
   - platform: modbus_controller
     use_write_multiple: true
@@ -502,6 +523,10 @@ number:
     value_type: U_WORD
 
 sensor:
+  - platform: uptime
+    type: seconds
+    name: Uptime Sensor
+
   - platform: modbus_controller
     modbus_controller_id: ${modbus_controller_id}
     name: "${device_type}-Heat sink temperature"
@@ -555,6 +580,20 @@ sensor:
       - multiply: 0.01
     value_type: U_WORD
  
+  - platform: modbus_controller
+    modbus_controller_id: ${modbus_controller_id}
+    name: "${device_type}-Grid Frequency"
+    id: ${device_type}_grid_frequency
+    register_type: holding
+    address: 609
+    unit_of_measurement: "Hz"
+    skip_updates: ${skip_updates_fast}
+    state_class: "measurement"
+    accuracy_decimals: 2
+    filters:
+      - multiply: 0.01
+    value_type: U_WORD
+
   - platform: modbus_controller
     modbus_controller_id: ${modbus_controller_id}
     name: "${device_type}-PV1 Power"
@@ -1135,16 +1174,19 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${modbus_controller_id}
     skip_updates: ${skip_updates_moderate}
+    # Register 217 is the BMS-reported battery temperature (lithium batteries
+    # with BMS communication). If your battery has no BMS comms, use register
+    # 586 instead (same filters).
     name: "${device_type}-battery temperature"
     id:  ${device_type}_battery_temperature
     register_type: holding
-    address: 586
+    address: 217
     unit_of_measurement: "°C"
     accuracy_decimals: 1
-    value_type: U_WORD 
+    value_type: U_WORD
     filters:
-      - offset: -1000
       - multiply: 0.1
+      - offset: -100
  
   - platform: modbus_controller
     modbus_controller_id: ${modbus_controller_id}
