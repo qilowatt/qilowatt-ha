@@ -112,10 +112,13 @@
               entity_id: sensor.qw_mode
               state: limitexport
           sequence:
+            # At 0 W (or no PowerLimit set) the zero-export hold turns the
+            # physical Solar Sell switch OFF — capping max sell power alone is
+            # not enough to reliably stop export on a Deye. Template condition
+            # instead of numeric_state so an unknown PowerLimit also lands here.
             - if:
-                - condition: numeric_state
-                  entity_id: sensor.qw_powerlimit
-                  below: 1
+                - condition: template
+                  value_template: "{{ states('sensor.qw_powerlimit') | int(0) < 1 }}"
               then:
                 - action: script.deye_mode_zero_export
                   data:

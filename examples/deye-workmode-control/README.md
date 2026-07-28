@@ -98,7 +98,7 @@ issued by mFRR market activations (`fusebox`/`kratt` source) and must always be 
 | `buy`, `frrdown` | *Zero export to CT* + grid charge on + battery target 100 % + charge currents max; grid import capped via **Grid Peak Shaving** = `PowerLimit`. |
 | `savebattery` | Zero-export hold with battery floor = *current* SoC → battery neither sells nor discharges; grid covers the deficit. |
 | `pvsell` | *Selling first* with battery floor = current SoC → PV surplus is exported but the battery is untouched. |
-| `limitexport` | Self-use with `max_solar_sell_power = PowerLimit`; at 0 W falls back to zero-export hold. |
+| `limitexport` | Self-use with `max_solar_sell_power = PowerLimit`. At 0 W (or no PowerLimit set) it applies the zero-export hold instead, which turns the **Solar Sell switch off** — on a Deye, capping max sell power alone is not a reliable way to stop export completely. |
 | `nobattery` | Zero-export hold with discharge current 0 and battery floor = current SoC. |
 
 ## FRR modes on other inverters
