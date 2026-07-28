@@ -1,0 +1,76 @@
+# Desired-state helpers for Deye WORKMODE control.
+#
+# Include as a Home Assistant package:
+#   homeassistant:
+#     packages:
+#       qilowatt_helpers: !include qilowatt/helpers.yaml
+#
+# The dispatch automation / scripts only ever write to these helpers.
+# The reconciler automation pushes them to the real inverter entities
+# until the inverter confirms each value.
+
+input_select:
+  deye_desired_work_mode:
+    name: "Deye desired: work mode"
+    icon: mdi:transmission-tower
+    options:
+      # Option strings must match your integration's work-mode select exactly
+      # (these are the ha-solarman / Solar Assistant names).
+      - "Selling first"
+      - "Zero export to Load"
+      - "Zero export to CT"
+
+input_boolean:
+  deye_desired_grid_charge:
+    name: "Deye desired: grid charge (active TOU slot)"
+    icon: mdi:battery-charging
+  deye_desired_grid_peak_shaving:
+    name: "Deye desired: grid peak shaving"
+    icon: mdi:chart-sankey
+  deye_desired_solar_export:
+    name: "Deye desired: solar sell"
+    icon: mdi:solar-power
+
+input_number:
+  deye_desired_tou_capacity:
+    name: "Deye desired: battery capacity floor (active TOU slot)"
+    icon: mdi:battery-arrow-down-outline
+    min: 0
+    max: 100
+    step: 1
+    unit_of_measurement: "%"
+  deye_desired_max_discharge_current:
+    name: "Deye desired: max battery discharge current"
+    icon: mdi:battery-minus-variant
+    min: 0
+    max: 185 # ADJUST: your inverter's max battery discharge current
+    step: 1
+    unit_of_measurement: "A"
+  deye_desired_max_charge_current:
+    name: "Deye desired: max battery charge current"
+    icon: mdi:battery-plus-variant
+    min: 0
+    max: 185 # ADJUST: your inverter's max battery charge current
+    step: 1
+    unit_of_measurement: "A"
+  deye_desired_max_grid_charge_current:
+    name: "Deye desired: max grid charge current"
+    icon: mdi:transmission-tower-import
+    min: 0
+    max: 185 # ADJUST: your inverter's max grid charge current
+    step: 1
+    unit_of_measurement: "A"
+  deye_desired_max_solar_sell_power:
+    name: "Deye desired: max solar sell power"
+    icon: mdi:transmission-tower-export
+    min: 0
+    max: 13000 # ADJUST: your inverter's rated export power
+    step: 10
+    unit_of_measurement: "W"
+  deye_desired_grid_peak_shaving_power:
+    name: "Deye desired: grid peak shaving power"
+    icon: mdi:transmission-tower-import
+    min: 0
+    max: 15000 # ADJUST: your grid connection / main fuse limit
+    step: 10
+    unit_of_measurement: "W"

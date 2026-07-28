@@ -1,0 +1,231 @@
+# Deye target-state scripts.
+#
+# Each script writes the FULL desired inverter state into the helpers from
+# helpers.yaml — every managed setting is set in every script, so switching
+# modes can never leave a stale value behind from the previous mode.
+# The reconciler automation then pushes the helpers to the inverter.
+#
+# Numbers marked # ADJUST must match your inverter rating / grid connection.
+
+deye_mode_sell:
+  alias: "Deye: sell to grid"
+  description: >-
+    Sell to grid at a set power (used for the "sell" and "frrup" modes).
+    Work mode "Selling first"; the grid-side cap max_solar_sell_power enforces
+    the target power, battery discharge is opened to max and the Deye itself
+    regulates battery power so the grid connection hits the cap regardless of
+    house load or PV. Do not call this with sell_power 0 — a Deye in Selling
+    first with max sell power 0 sells on one phase while buying on another;
+    use deye_mode_zero_export instead.
+  mode: restart
+  fields:
+    capacity:
+      description: Battery capacity % floor (active TOU slot)
+      required: true
+    sell_power:
+      description: Max solar sell power in W
+      required: true
+  sequence:
+    - action: input_select.select_option
+      target:
+        entity_id: input_select.deye_desired_work_mode
+      data:
+        option: "Selling first"
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.deye_desired_tou_capacity
+      data:
+        value: "{{ capacity }}"
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.deye_desired_max_solar_sell_power
+      data:
+        value: "{{ sell_power }}"
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.deye_desired_max_discharge_current
+      data:
+        value: 185 # ADJUST: max battery discharge current
+    - action: input_number.set_value
+      target:
+        entity_id:
+          - input_number.deye_desired_max_charge_current
+          - input_number.deye_desired_max_grid_charge_current
+      data:
+        value: 185 # ADJUST: max battery charge current
+    - action: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.deye_desired_solar_export
+    - action: input_boolean.turn_off
+      target:
+        entity_id:
+          - input_boolean.deye_desired_grid_charge
+          - input_boolean.deye_desired_grid_peak_shaving
+
+deye_mode_grid_charge:
+  alias: "Deye: charge from grid"
+  description: >-
+    Charge the battery from the grid (used for the "buy" and "frrdown" modes).
+    Work mode "Zero export to CT" with grid charge on and battery target 100%;
+    charge currents are opened to max and the grid-side import cap
+    grid_peak_shaving_power enforces the target power — the Deye regulates
+    battery charging so total grid import stays at the cap regardless of house
+    load or PV.
+  mode: restart
+  fields:
+    peak_shaving_power:
+      description: Grid import cap in W (enforced via Grid Peak Shaving)
+      required: true
+  sequence:
+    - action: input_select.select_option
+      target:
+        entity_id: input_select.deye_desired_work_mode
+      data:
+        option: "Zero export to CT"
+    - action: input_boolean.turn_on
+      target:
+        entity_id:
+          - input_boolean.deye_desired_grid_charge
+          - input_boolean.deye_desired_grid_peak_shaving
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.deye_desired_tou_capacity
+      data:
+        value: 100
+    - action: input_number.set_value
+      target:
+        entity_id:
+          - input_number.deye_desired_max_charge_current
+          - input_number.deye_desired_max_grid_charge_current
+      data:
+        value: 185 # ADJUST: max battery / grid charge current
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.deye_desired_max_discharge_current
+      data:
+        value: 185 # ADJUST: max battery discharge current
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.deye_desired_grid_peak_shaving_power
+      data:
+        value: "{{ peak_shaving_power }}"
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.deye_desired_max_solar_sell_power
+      data:
+        value: 0
+    - action: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.deye_desired_solar_export
+
+deye_mode_zero_export:
+  alias: "Deye: zero export hold"
+  description: >-
+    Zero grid exchange: work mode "Zero export to CT", solar sell off, no grid
+    charge. PV powers the load and charges the battery; the battery covers the
+    load down to the capacity floor, then the grid takes over. Used for
+    savebattery/nobattery (floor = current SoC), for sell/frrup/limitexport at
+    0 W, and as a building block generally.
+  mode: restart
+  fields:
+    capacity:
+      description: Battery capacity % floor (active TOU slot)
+      required: true
+    max_discharge:
+      description: Max battery discharge current in A (default max; 0 = battery never discharges)
+      required: false
+  sequence:
+    - action: input_select.select_option
+      target:
+        entity_id: input_select.deye_desired_work_mode
+      data:
+        option: "Zero export to CT"
+    - action: input_boolean.turn_off
+      target:
+        entity_id:
+          - input_boolean.deye_desired_grid_charge
+          - input_boolean.deye_desired_solar_export
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.deye_desired_tou_capacity
+      data:
+        value: "{{ capacity }}"
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.deye_desired_max_discharge_current
+      data:
+        value: "{{ max_discharge | default(185) }}" # ADJUST default: max discharge current
+    - action: input_number.set_value
+      target:
+        entity_id:
+          - input_number.deye_desired_max_charge_current
+          - input_number.deye_desired_max_grid_charge_current
+      data:
+        value: 185 # ADJUST: max battery charge current
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.deye_desired_max_solar_sell_power
+      data:
+        value: 0
+    # Keep peak shaving armed at the grid connection limit as an import safety net.
+    - action: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.deye_desired_grid_peak_shaving
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.deye_desired_grid_peak_shaving_power
+      data:
+        value: 15000 # ADJUST: grid connection / main fuse limit
+
+deye_mode_self_use:
+  alias: "Deye: self-use"
+  description: >-
+    Normal self-consumption: work mode "Zero export to CT" with solar sell on.
+    PV powers the load and charges the battery, the battery discharges down to
+    the capacity floor, and PV surplus is exported up to sell_power. Used for
+    the "normal" mode (sell_power = inverter max), "limitexport"
+    (sell_power = PowerLimit) and "pvsell" (floor = current SoC).
+  mode: restart
+  fields:
+    capacity:
+      description: Battery capacity % floor (active TOU slot)
+      required: true
+    sell_power:
+      description: Max solar sell power in W
+      required: true
+  sequence:
+    - action: input_select.select_option
+      target:
+        entity_id: input_select.deye_desired_work_mode
+      data:
+        option: "Zero export to CT"
+    - action: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.deye_desired_solar_export
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.deye_desired_max_solar_sell_power
+      data:
+        value: "{{ sell_power }}"
+    - action: input_boolean.turn_off
+      target:
+        entity_id:
+          - input_boolean.deye_desired_grid_charge
+          - input_boolean.deye_desired_grid_peak_shaving
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.deye_desired_tou_capacity
+      data:
+        value: "{{ capacity }}"
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.deye_desired_max_discharge_current
+      data:
+        value: 185 # ADJUST: max battery discharge current
+    - action: input_number.set_value
+      target:
+        entity_id:
+          - input_number.deye_desired_max_charge_current
+          - input_number.deye_desired_max_grid_charge_current
+      data:
+        value: 185 # ADJUST: max battery charge current

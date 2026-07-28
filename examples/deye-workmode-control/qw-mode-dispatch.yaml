@@ -1,0 +1,136 @@
+# Automation 1: Qilowatt WORKMODE -> desired-state helpers.
+#
+# Source-agnostic dispatch on sensor.qw_mode: the Qilowatt backend computes the
+# target power (sensor.qw_powerlimit), so there are no sensor.qw_source
+# branches — manual / timer / optimizer / Q / fusebox commands all flow through
+# the same mode logic. Each branch applies the FULL desired inverter state via
+# a shared script (scripts.yaml); this automation never touches the inverter
+# directly.
+#
+# Replace sensor.deye_battery_soc with your battery SoC entity (the same one
+# you selected during Qilowatt integration setup works fine).
+
+- id: qw_mode_dispatch
+  alias: "QW: mode dispatch"
+  description: >-
+    Reacts to Qilowatt WORKMODE commands and writes the matching Deye target
+    state into the desired-state helpers. Exception: sell/frrup at 0 W uses a
+    zero-export hold, because Selling first with max sell power 0 makes a Deye
+    sell on one phase while buying on another. FRR modes are handled grid-side
+    (max sell power / grid peak shaving = PowerLimit, battery limits opened) —
+    correct for Deye; inverters without grid-side setpoints must control
+    battery charge/discharge power instead (see README).
+  triggers:
+    - trigger: state
+      entity_id:
+        - sensor.qw_mode
+        - sensor.qw_powerlimit
+  conditions:
+    - condition: template
+      value_template: >-
+        {{ states('sensor.qw_mode') not in ['unknown', 'unavailable', 'none'] }}
+  actions:
+    - choose:
+        - alias: "Sell / FRR-up at 0 W (zero export hold)"
+          conditions:
+            - condition: state
+              entity_id: sensor.qw_mode
+              state:
+                - sell
+                - frrup
+            - condition: numeric_state
+              entity_id: sensor.qw_powerlimit
+              below: 1
+          sequence:
+            - action: script.deye_mode_zero_export
+              data:
+                capacity: "{{ states('sensor.qw_batterysoc') | int(10) }}"
+
+        - alias: "Sell / FRR-up"
+          conditions:
+            - condition: state
+              entity_id: sensor.qw_mode
+              state:
+                - sell
+                - frrup
+          sequence:
+            - action: script.deye_mode_sell
+              data:
+                capacity: "{{ states('sensor.qw_batterysoc') | int(10) }}"
+                # Floor at 100 W — see the 0 W quirk above.
+                sell_power: "{{ [states('sensor.qw_powerlimit') | int(0), 100] | max }}"
+
+        - alias: "Buy / FRR-down"
+          conditions:
+            - condition: state
+              entity_id: sensor.qw_mode
+              state:
+                - buy
+                - frrdown
+          sequence:
+            - action: script.deye_mode_grid_charge
+              data:
+                peak_shaving_power: "{{ [states('sensor.qw_powerlimit') | int(0), 100] | max }}"
+
+        - alias: "Savebattery (hold SoC, grid covers deficit)"
+          conditions:
+            - condition: state
+              entity_id: sensor.qw_mode
+              state: savebattery
+          sequence:
+            # Capacity floor = current SoC: the battery may still charge from
+            # PV but will not discharge.
+            - action: script.deye_mode_zero_export
+              data:
+                capacity: "{{ states('sensor.deye_battery_soc') | int(50) }}"
+
+        - alias: "Nobattery (battery unused)"
+          conditions:
+            - condition: state
+              entity_id: sensor.qw_mode
+              state: nobattery
+          sequence:
+            - action: script.deye_mode_zero_export
+              data:
+                capacity: "{{ states('sensor.deye_battery_soc') | int(50) }}"
+                max_discharge: 0
+
+        - alias: "Pvsell (export PV surplus, battery untouched)"
+          conditions:
+            - condition: state
+              entity_id: sensor.qw_mode
+              state: pvsell
+          sequence:
+            - action: script.deye_mode_self_use
+              data:
+                capacity: "{{ states('sensor.deye_battery_soc') | int(50) }}"
+                sell_power: 13000 # ADJUST: inverter rated export power
+
+        - alias: "Limitexport (cap export, e.g. negative prices)"
+          conditions:
+            - condition: state
+              entity_id: sensor.qw_mode
+              state: limitexport
+          sequence:
+            - if:
+                - condition: numeric_state
+                  entity_id: sensor.qw_powerlimit
+                  below: 1
+              then:
+                - action: script.deye_mode_zero_export
+                  data:
+                    capacity: "{{ states('sensor.qw_batterysoc') | int(10) }}"
+              else:
+                - action: script.deye_mode_self_use
+                  data:
+                    capacity: "{{ states('sensor.qw_batterysoc') | int(10) }}"
+                    sell_power: "{{ states('sensor.qw_powerlimit') | int(0) }}"
+
+      # normal (and anything unrecognised): plain self-use.
+      default:
+        - action: script.deye_mode_self_use
+          data:
+            capacity: "{{ states('sensor.qw_batterysoc') | int(10) }}"
+            sell_power: 13000 # ADJUST: inverter rated export power
+  mode: queued
+  max: 10

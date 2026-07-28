@@ -96,7 +96,9 @@ Sending multiple commands to an inverter in quick succession can cause some to b
 
 This pattern ensures that commands are persistent and will be re-sent until the inverter correctly reports the desired state.
 
-**Example Automations (replace entity IDs with your own):**
+**Complete worked example (Deye):** [`examples/deye-workmode-control/`](examples/deye-workmode-control/) contains a full, production-tested implementation of this pattern — helpers, mode-dispatch automation covering every WORKMODE mode, the desired-state reconciler, and a connection-lost failsafe. Start there and replace the entity IDs with your own.
+
+**Older community examples (replace entity IDs with your own):**
 -   **Automation 1 (QW -> Helper):** [https://pastebin.com/t0wbZYQM](https://pastebin.com/t0wbZYQM)
 -   **Automation 2 (Helper -> Inverter):** [https://pastebin.com/7LFrY3Cs](https://pastebin.com/7LFrY3Cs)
 -   **Optional Power Fine-Tuning Automation:** [https://pastebin.com/pYygtW33](https://pastebin.com/pYygtW33)
