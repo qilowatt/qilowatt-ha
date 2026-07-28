@@ -511,7 +511,7 @@ number:
 sensor:
   - platform: uptime
     type: seconds
-    name: Uptime Sensor
+    name: "${device_type}-Uptime"
 
   - platform: modbus_controller
     modbus_controller_id: ${modbus_controller_id}
