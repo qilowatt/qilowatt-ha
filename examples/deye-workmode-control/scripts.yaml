@@ -20,7 +20,7 @@ deye_mode_sell:
   mode: restart
   fields:
     capacity:
-      description: Battery capacity % floor (active TOU slot)
+      description: Battery capacity % floor (TOU time point 6)
       required: true
     sell_power:
       description: Max solar sell power in W
@@ -129,7 +129,7 @@ deye_mode_zero_export:
   mode: restart
   fields:
     capacity:
-      description: Battery capacity % floor (active TOU slot)
+      description: Battery capacity % floor (TOU time point 6)
       required: true
     max_discharge:
       description: Max battery discharge current in A (default max; 0 = battery never discharges)
@@ -188,7 +188,7 @@ deye_mode_self_use:
   mode: restart
   fields:
     capacity:
-      description: Battery capacity % floor (active TOU slot)
+      description: Battery capacity % floor (TOU time point 6)
       required: true
     sell_power:
       description: Max solar sell power in W

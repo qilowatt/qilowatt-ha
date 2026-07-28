@@ -22,7 +22,7 @@ input_select:
 
 input_boolean:
   deye_desired_grid_charge:
-    name: "Deye desired: grid charge (active TOU slot)"
+    name: "Deye desired: grid charge (TOU time point 6)"
     icon: mdi:battery-charging
   deye_desired_grid_peak_shaving:
     name: "Deye desired: grid peak shaving"
@@ -33,7 +33,7 @@ input_boolean:
 
 input_number:
   deye_desired_tou_capacity:
-    name: "Deye desired: battery capacity floor (active TOU slot)"
+    name: "Deye desired: battery capacity floor (TOU time point 6)"
     icon: mdi:battery-arrow-down-outline
     min: 0
     max: 100

@@ -54,7 +54,7 @@
         - delay:
             seconds: 1
 
-    - alias: "Grid charge (active TOU slot)"
+    - alias: "Grid charge (TOU time point 6)"
       if:
         - condition: template
           value_template: >-
@@ -70,7 +70,7 @@
         - delay:
             seconds: 1
 
-    - alias: "Battery capacity floor (active TOU slot)"
+    - alias: "Battery capacity floor (TOU time point 6)"
       if:
         - condition: template
           value_template: >-

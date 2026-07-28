@@ -74,10 +74,12 @@ Why this shape:
      `select.deye_limit_control_mode`, `number.deye_max_solar_sell_power`, …
 3. **Check the constants** marked `# ADJUST` — max charge/discharge current, max
    sell power and max import power must match *your* inverter rating and grid connection.
-4. **Time-of-Use setup on the Deye:** enable Time-of-Use and collapse the schedule so a
-   single program slot is active for the whole day (this example drives that one slot's
-   *capacity* and *grid charge* settings). If you keep multiple TOU slots, extend the
-   scripts/reconciler to write all of them.
+4. **Time-of-Use setup on the Deye:** enable Time-of-Use and set the start time of
+   **every** time point (1–6) to `00:00`. With all times at zero, points 1–5 each cover a
+   zero-length window and time point 6 is the only active slot for the whole day — so
+   only time point 6's *capacity* and *grid charge* settings ever need to be controlled,
+   which is what this example's helpers map to. If you keep a real multi-slot TOU
+   schedule instead, extend the scripts/reconciler to write all active slots.
 
 ## Mode → Deye state mapping
 
