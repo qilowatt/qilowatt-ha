@@ -289,20 +289,6 @@ number:
     value_type: U_WORD
     internal: true  # Hide from UI since we use template switches
 
-  - platform: modbus_controller  # Maintenance helper: manually reset register 178
-    use_write_multiple: true     # if it ends up with a bad/corrupted value
-    modbus_controller_id: ${modbus_controller_id}
-    id: ${device_type}_register_178_reset
-    name: "${device_type}-Register 178 Reset (Signed)"
-    address: 178
-    value_type: S_WORD
-    min_value: -32768
-    max_value: 32767
-    step: 1
-    entity_category: config
-    icon: "mdi:wrench"
-    mode: box  # Allows typing exact values
-
   - platform: modbus_controller
     use_write_multiple: true
     modbus_controller_id: ${modbus_controller_id}
