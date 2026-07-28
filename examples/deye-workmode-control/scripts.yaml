@@ -28,39 +28,39 @@ deye_mode_sell:
   sequence:
     - action: input_select.select_option
       target:
-        entity_id: input_select.deye_desired_work_mode
+        entity_id: input_select.inverter_desired_work_mode
       data:
         option: "Selling first"
     - action: input_number.set_value
       target:
-        entity_id: input_number.deye_desired_tou_capacity
+        entity_id: input_number.inverter_desired_tou_capacity
       data:
         value: "{{ capacity }}"
     - action: input_number.set_value
       target:
-        entity_id: input_number.deye_desired_max_solar_sell_power
+        entity_id: input_number.inverter_desired_max_solar_sell_power
       data:
         value: "{{ sell_power }}"
     - action: input_number.set_value
       target:
-        entity_id: input_number.deye_desired_max_discharge_current
+        entity_id: input_number.inverter_desired_max_discharge_current
       data:
         value: 185 # ADJUST: max battery discharge current
     - action: input_number.set_value
       target:
         entity_id:
-          - input_number.deye_desired_max_charge_current
-          - input_number.deye_desired_max_grid_charge_current
+          - input_number.inverter_desired_max_charge_current
+          - input_number.inverter_desired_max_grid_charge_current
       data:
         value: 185 # ADJUST: max battery charge current
     - action: input_boolean.turn_on
       target:
-        entity_id: input_boolean.deye_desired_solar_export
+        entity_id: input_boolean.inverter_desired_solar_export
     - action: input_boolean.turn_off
       target:
         entity_id:
-          - input_boolean.deye_desired_grid_charge
-          - input_boolean.deye_desired_grid_peak_shaving
+          - input_boolean.inverter_desired_grid_charge
+          - input_boolean.inverter_desired_grid_peak_shaving
 
 deye_mode_grid_charge:
   alias: "Deye: charge from grid"
@@ -79,44 +79,44 @@ deye_mode_grid_charge:
   sequence:
     - action: input_select.select_option
       target:
-        entity_id: input_select.deye_desired_work_mode
+        entity_id: input_select.inverter_desired_work_mode
       data:
         option: "Zero export to CT"
     - action: input_boolean.turn_on
       target:
         entity_id:
-          - input_boolean.deye_desired_grid_charge
-          - input_boolean.deye_desired_grid_peak_shaving
+          - input_boolean.inverter_desired_grid_charge
+          - input_boolean.inverter_desired_grid_peak_shaving
     - action: input_number.set_value
       target:
-        entity_id: input_number.deye_desired_tou_capacity
+        entity_id: input_number.inverter_desired_tou_capacity
       data:
         value: 100
     - action: input_number.set_value
       target:
         entity_id:
-          - input_number.deye_desired_max_charge_current
-          - input_number.deye_desired_max_grid_charge_current
+          - input_number.inverter_desired_max_charge_current
+          - input_number.inverter_desired_max_grid_charge_current
       data:
         value: 185 # ADJUST: max battery / grid charge current
     - action: input_number.set_value
       target:
-        entity_id: input_number.deye_desired_max_discharge_current
+        entity_id: input_number.inverter_desired_max_discharge_current
       data:
         value: 185 # ADJUST: max battery discharge current
     - action: input_number.set_value
       target:
-        entity_id: input_number.deye_desired_grid_peak_shaving_power
+        entity_id: input_number.inverter_desired_grid_peak_shaving_power
       data:
         value: "{{ peak_shaving_power }}"
     - action: input_number.set_value
       target:
-        entity_id: input_number.deye_desired_max_solar_sell_power
+        entity_id: input_number.inverter_desired_max_solar_sell_power
       data:
         value: 0
     - action: input_boolean.turn_off
       target:
-        entity_id: input_boolean.deye_desired_solar_export
+        entity_id: input_boolean.inverter_desired_solar_export
 
 deye_mode_zero_export:
   alias: "Deye: zero export hold"
@@ -137,43 +137,43 @@ deye_mode_zero_export:
   sequence:
     - action: input_select.select_option
       target:
-        entity_id: input_select.deye_desired_work_mode
+        entity_id: input_select.inverter_desired_work_mode
       data:
         option: "Zero export to CT"
     - action: input_boolean.turn_off
       target:
         entity_id:
-          - input_boolean.deye_desired_grid_charge
-          - input_boolean.deye_desired_solar_export
+          - input_boolean.inverter_desired_grid_charge
+          - input_boolean.inverter_desired_solar_export
     - action: input_number.set_value
       target:
-        entity_id: input_number.deye_desired_tou_capacity
+        entity_id: input_number.inverter_desired_tou_capacity
       data:
         value: "{{ capacity }}"
     - action: input_number.set_value
       target:
-        entity_id: input_number.deye_desired_max_discharge_current
+        entity_id: input_number.inverter_desired_max_discharge_current
       data:
         value: "{{ max_discharge | default(185) }}" # ADJUST default: max discharge current
     - action: input_number.set_value
       target:
         entity_id:
-          - input_number.deye_desired_max_charge_current
-          - input_number.deye_desired_max_grid_charge_current
+          - input_number.inverter_desired_max_charge_current
+          - input_number.inverter_desired_max_grid_charge_current
       data:
         value: 185 # ADJUST: max battery charge current
     - action: input_number.set_value
       target:
-        entity_id: input_number.deye_desired_max_solar_sell_power
+        entity_id: input_number.inverter_desired_max_solar_sell_power
       data:
         value: 0
     # Keep peak shaving armed at the grid connection limit as an import safety net.
     - action: input_boolean.turn_on
       target:
-        entity_id: input_boolean.deye_desired_grid_peak_shaving
+        entity_id: input_boolean.inverter_desired_grid_peak_shaving
     - action: input_number.set_value
       target:
-        entity_id: input_number.deye_desired_grid_peak_shaving_power
+        entity_id: input_number.inverter_desired_grid_peak_shaving_power
       data:
         value: 15000 # ADJUST: grid connection / main fuse limit
 
@@ -196,36 +196,36 @@ deye_mode_self_use:
   sequence:
     - action: input_select.select_option
       target:
-        entity_id: input_select.deye_desired_work_mode
+        entity_id: input_select.inverter_desired_work_mode
       data:
         option: "Zero export to CT"
     - action: input_boolean.turn_on
       target:
-        entity_id: input_boolean.deye_desired_solar_export
+        entity_id: input_boolean.inverter_desired_solar_export
     - action: input_number.set_value
       target:
-        entity_id: input_number.deye_desired_max_solar_sell_power
+        entity_id: input_number.inverter_desired_max_solar_sell_power
       data:
         value: "{{ sell_power }}"
     - action: input_boolean.turn_off
       target:
         entity_id:
-          - input_boolean.deye_desired_grid_charge
-          - input_boolean.deye_desired_grid_peak_shaving
+          - input_boolean.inverter_desired_grid_charge
+          - input_boolean.inverter_desired_grid_peak_shaving
     - action: input_number.set_value
       target:
-        entity_id: input_number.deye_desired_tou_capacity
+        entity_id: input_number.inverter_desired_tou_capacity
       data:
         value: "{{ capacity }}"
     - action: input_number.set_value
       target:
-        entity_id: input_number.deye_desired_max_discharge_current
+        entity_id: input_number.inverter_desired_max_discharge_current
       data:
         value: 185 # ADJUST: max battery discharge current
     - action: input_number.set_value
       target:
         entity_id:
-          - input_number.deye_desired_max_charge_current
-          - input_number.deye_desired_max_grid_charge_current
+          - input_number.inverter_desired_max_charge_current
+          - input_number.inverter_desired_max_grid_charge_current
       data:
         value: 185 # ADJUST: max battery charge current
