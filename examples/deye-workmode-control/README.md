@@ -81,7 +81,12 @@ Why this shape:
 
 ## Mode → Deye state mapping
 
-All modes shown in the Qilowatt UI are handled. `PowerLimit` is always positive.
+All modes are handled. The Qilowatt timer/manual UI lets you pick six modes — `normal`,
+`sell`, `buy`, `savebattery`, `limitexport`, `pvsell` — together with an optional power
+(W → `sensor.qw_powerlimit`, always positive) and SOC (% → `sensor.qw_batterysoc`, used
+below as the battery capacity floor). `frrup`/`frrdown` are not user-selectable: they are
+issued by mFRR market activations (`fusebox`/`kratt` source) and must always be obeyed.
+`nobattery` exists in the WORKMODE API and is handled for completeness.
 
 | `sensor.qw_mode` | Deye state applied |
 |---|---|
