@@ -6,6 +6,7 @@ import logging
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.const import __version__ as HA_VERSION
+from homeassistant.loader import async_get_loaded_integration
 
 from qilowatt import EnergyData, InverterDevice, MetricsData, QilowattMQTTClient, WorkModeCommand
 
@@ -29,6 +30,7 @@ class MQTTClient:
         self.inverter_model = config_entry.data["inverter_model"]
 
         self.qilowatt_client = None  # Will be initialized later
+        self._update_task = None
 
         # Initialize the primary inverter
         inverter_class = get_inverter_class(self.inverter_model)
@@ -44,17 +46,21 @@ class MQTTClient:
 
         self.qw_device = InverterDevice(device_id=self.inverter_id)
 
-                # Set qw_device version data (convert AwesomeVersion to str)
-        qilowatt_integration = self.hass.data.get("integrations", {}).get(DOMAIN)
-        qilowatt_ha_version = (
-            str(qilowatt_integration.version)
-            if qilowatt_integration and getattr(qilowatt_integration, "version", None)
-            else "unknown"
-        )
-        for requirement in qilowatt_integration.requirements:
-            if requirement.startswith("qilowatt=="):
-                qilowatt_py_version = requirement.split("==")[1]
-                break
+        # Set qw_device version data (convert AwesomeVersion to str)
+        qilowatt_ha_version = "unknown"
+        qilowatt_py_version = "unknown"
+        try:
+            integration = async_get_loaded_integration(self.hass, DOMAIN)
+        except Exception:  # pylint: disable=broad-except
+            integration = None
+            _LOGGER.debug("Could not resolve the Qilowatt integration for version info")
+        if integration:
+            if integration.version:
+                qilowatt_ha_version = str(integration.version)
+            for requirement in integration.requirements:
+                if requirement.startswith("qilowatt=="):
+                    qilowatt_py_version = requirement.split("==", 1)[1]
+                    break
 
         self.qw_device.set_version_data(
             {
@@ -86,14 +92,21 @@ class MQTTClient:
         # Run the blocking connect in the executor too
         await self.hass.async_add_executor_job(self.qilowatt_client.connect)
 
-        # Start data update loop
-        self.hass.loop.create_task(self.update_data_loop())
+        # Start data update loop; the config entry cancels this task on unload
+        self._update_task = self.config_entry.async_create_background_task(
+            self.hass,
+            self.update_data_loop(),
+            name=f"qilowatt_update_loop_{self.inverter_id}",
+        )
 
-    def stop(self):
-        """Stop the Qilowatt MQTT client."""
+    async def async_stop(self):
+        """Stop the update loop and the Qilowatt MQTT client."""
         _LOGGER.debug("Stopping Qilowatt MQTT client")
+        if self._update_task:
+            self._update_task.cancel()
+            self._update_task = None
         if self.qilowatt_client:
-            self.qilowatt_client.disconnect()
+            await self.hass.async_add_executor_job(self.qilowatt_client.disconnect)
 
     def _on_command_received(self, command: WorkModeCommand):
         """Handle the WORKMODE command received from the MQTT broker."""
