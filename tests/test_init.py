@@ -158,6 +158,8 @@ async def test_validate_credentials_times_out(hass, fake_qw):
     with patch("custom_components.qilowatt.mqtt_client.VALIDATE_TIMEOUT", 0.05):
         with pytest.raises(CannotConnect):
             await async_validate_credentials(hass, "u", "p", "QW123")
+    # On a timeout the cleanup is deliberately not awaited by the caller
+    await hass.async_block_till_done(wait_background_tasks=True)
     assert fake_qw.instances[-1].disconnected
 
 
