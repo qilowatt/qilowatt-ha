@@ -76,15 +76,15 @@ class SolarAssistantInverter(BaseInverter):
         """Return (voltage, power, current) per phase for the generator port.
 
         Solar Assistant publishes a single generator_power value already summed
-        over all phases, and no generator voltage or current. Spread the total
-        evenly across the three phases so the sum stays correct, and report
-        zeros for voltage and current. Setups without a generator report zeros.
+        over all phases, and no generator voltage or current. Qilowatt sums the
+        phases on its side, so report the total on phase 1 with the other phases
+        at zero, and zeros for voltage and current. Setups without a generator
+        report zeros.
         """
         total = self.get_optional_float("generator_power")
         if total is None:
-            return [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]
-        per_phase = round(total / 3, 1)
-        return [0.0, 0.0, 0.0], [per_phase] * 3, [0.0, 0.0, 0.0]
+            total = 0.0
+        return [0.0, 0.0, 0.0], [total, 0.0, 0.0], [0.0, 0.0, 0.0]
 
     def get_energy_data(self):
         """Retrieve ENERGY data."""

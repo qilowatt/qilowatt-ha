@@ -18,7 +18,7 @@ Before you begin, ensure you have the following:
 The `qilowatt-ha` integration relies on existing HA integrations to discover and read data from your inverter. Supported integrations include:
 
 -   **Deye:**
-    -   Via **Solar Assistant**. Solar Assistant publishes only a total generator power, which is forwarded to Qilowatt spread evenly over the three phases.
+    -   Via **Solar Assistant**. Solar Assistant publishes only a total generator power, which is forwarded to Qilowatt on phase 1 (Qilowatt sums the phases).
     -   Via **Solarman**: The community strongly recommends the [davidrapan/ha-solarman](https://github.com/davidrapan/ha-solarman) version for reliability. Generator port readings (Generator L1-L3 Voltage and Power) are forwarded to Qilowatt when the inverter profile exposes them.
     -   Via **ESPHome**: An [example configuration](https://github.com/qilowatt/qilowatt-ha/blob/main/examples/esphome-lilygo-tcan485.yaml) is available.
 -   **Sofar:**
