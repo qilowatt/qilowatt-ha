@@ -1,15 +1,29 @@
 {
-    "config": {
-        "step": {
-            "user": {
-                "data": {
-                    "mqtt_username": "MQTT Username",
-                    "mqtt_password": "MQTT Password",
-                    "inverter_id": "Qilowatt Inverter ID",
-                    "device_id": "Inverter"
-                },
-                "description": "Get the username, password and inverter ID from Qilowatt. Select a detected inverter."
-            }
-        }
+  "config": {
+    "step": {
+      "user": {
+        "data": {
+          "mqtt_username": "MQTT Username",
+          "mqtt_password": "MQTT Password",
+          "inverter_id": "Qilowatt Inverter ID",
+          "device_id": "Inverter"
+        },
+        "description": "Get the username, password and inverter ID from Qilowatt. Select a detected inverter."
+      },
+      "secondary": {
+        "title": "Additional inverters",
+        "data": {
+          "secondary_device_ids": "Parallel inverters"
+        },
+        "description": "If you have more than one inverter of the same type running in parallel behind one grid connection, select the others here. Their grid power, current and energy are summed with the primary inverter, PV strings and batteries are reported as additional units, and the combined system is sent to Qilowatt as one device. Leave empty for a single-inverter setup."
+      }
     }
+  },
+  "entity": {
+    "binary_sensor": {
+      "qw_connected": {
+        "name": "QW Connected"
+      }
+    }
+  }
 }
