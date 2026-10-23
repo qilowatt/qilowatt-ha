@@ -58,6 +58,38 @@ class SolarmanInverter(BaseInverter):
             _LOGGER.warning(f"State of {entity_id} is unavailable or unknown")
         return default
 
+    def get_optional_float(self, entity_id):
+        """Return a sensor state as float, or None if it is missing or unavailable.
+
+        Unlike get_state_float this does not log, so it suits readings that only
+        some inverter profiles expose, such as the generator port.
+        """
+        state = self.find_entity_state(entity_id)
+        if state is None or state.state in ("unknown", "unavailable", ""):
+            return None
+        try:
+            return float(state.state)
+        except ValueError:
+            return None
+
+    def get_generator_data(self):
+        """Return (voltage, power, current) per phase for the generator port.
+
+        Three-phase Deye profiles expose Generator L1..L3 Voltage and Power.
+        Single-phase profiles expose Generator Voltage and Power, reported on
+        phase 1. Inverters without a generator port report zeros, which is what
+        the Qilowatt backend expects.
+        """
+        voltage = [self.get_optional_float(f"generator_l{i}_voltage") for i in (1, 2, 3)]
+        power = [self.get_optional_float(f"generator_l{i}_power") for i in (1, 2, 3)]
+        if all(v is None for v in voltage) and all(x is None for x in power):
+            voltage = [self.get_optional_float("generator_voltage"), None, None]
+            power = [self.get_optional_float("generator_power"), None, None]
+        voltage = [v if v is not None else 0.0 for v in voltage]
+        power = [x if x is not None else 0.0 for x in power]
+        current = [round(x / v, 2) if v else 0.0 for x, v in zip(power, voltage)]
+        return voltage, power, current
+
     def get_energy_data(self):
         """Retrieve ENERGY data."""
         power = [
@@ -113,6 +145,7 @@ class SolarmanInverter(BaseInverter):
         grid_export_limit = self.get_state_float("grid_max_export_power")
         battery_temperature = [self.get_state_float("battery_temperature")]
         inverter_temperature = self.get_state_float("inverter_temperature")
+        gen_voltage, gen_power, gen_current = self.get_generator_data()
 
         return MetricsData(
             PvPower=pv_power,
@@ -125,6 +158,9 @@ class SolarmanInverter(BaseInverter):
             BatteryPower=battery_power,
             BatteryCurrent=battery_current,
             BatteryVoltage=battery_voltage,
+            GenVoltage=gen_voltage,
+            GenPower=gen_power,
+            GenCurrent=gen_current,
             InverterStatus=inverter_status,
             GridExportLimit=grid_export_limit,
             BatteryTemperature=battery_temperature,

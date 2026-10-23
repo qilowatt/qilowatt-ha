@@ -19,7 +19,7 @@ The `qilowatt-ha` integration relies on existing HA integrations to discover and
 
 -   **Deye:**
     -   Via **Solar Assistant**.
-    -   Via **Solarman**: The community strongly recommends the [davidrapan/ha-solarman](https://github.com/davidrapan/ha-solarman) version for reliability.
+    -   Via **Solarman**: The community strongly recommends the [davidrapan/ha-solarman](https://github.com/davidrapan/ha-solarman) version for reliability. Generator port readings (Generator L1-L3 Voltage and Power) are forwarded to Qilowatt when the inverter profile exposes them.
     -   Via **ESPHome**: An [example configuration](https://github.com/qilowatt/qilowatt-ha/blob/main/examples/esphome-lilygo-tcan485.yaml) is available.
 -   **Sofar:**
     -   Via **SolaX Modbus**: Requires the [wills106/homeassistant-solax-modbus](https://github.com/wills106/homeassistant-solax-modbus) integration.
