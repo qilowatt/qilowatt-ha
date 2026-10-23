@@ -124,7 +124,6 @@ class MQTTClient:
         self.inverter_model = config_entry.data["inverter_model"]
 
         self.qilowatt_client = None  # Will be initialized later
-        self._update_task = None
 
         # Initialize the primary inverter
         inverter_class = get_inverter_class(self.inverter_model)
@@ -197,21 +196,19 @@ class MQTTClient:
                 f"Could not connect to the Qilowatt broker: {err}"
             ) from err
 
-        # Start data update loop; the config entry cancels this task on unload
-        self._update_task = self.config_entry.async_create_background_task(
-            self.hass,
-            self.update_data_loop(),
-            name=f"qilowatt_update_loop_{self.inverter_id}",
-        )
+        # The library owns the publish cadence: its sensor timer fires exactly
+        # every 10 s and pulls fresh data through the provider right before
+        # each publish. Registering the provider starts the timers.
+        self.qw_device.set_data_provider(self.read_inverter_data)
 
     async def async_stop(self):
-        """Stop the update loop and the Qilowatt MQTT client."""
+        """Stop the Qilowatt MQTT client and its publishing timers."""
         _LOGGER.debug("Stopping Qilowatt MQTT client")
-        if self._update_task:
-            self._update_task.cancel()
-            self._update_task = None
         if self.qilowatt_client:
             await self.hass.async_add_executor_job(self.qilowatt_client.disconnect)
+        # disconnect() stops the timers too; this keeps it true if there was
+        # no client, and joining the timer threads is blocking work.
+        await self.hass.async_add_executor_job(self.qw_device.stop_timers)
 
     def _on_command_received(self, command: WorkModeCommand):
         """Handle the WORKMODE command received from the MQTT broker."""
@@ -252,31 +249,14 @@ class MQTTClient:
             connected,
         )
 
-    async def update_data_loop(self):
-        """Loop to periodically fetch data and send it to MQTT."""
-        # Initial delay to give MQTT client time to establish connection
-        await asyncio.sleep(5)
+    def read_inverter_data(self):
+        """Read the current inverter data for the library to publish.
 
-        while True:
-            try:
-                await self.hass.async_add_executor_job(self.update_data)
-            except Exception as e:  # pylint: disable=broad-except
-                _LOGGER.error("Error updating data: %s", e)
-            await asyncio.sleep(10)  # Adjust the interval as needed
-
-    def update_data(self):
-        """Fetch data from inverter and send to MQTT."""
-        # Skip if client doesn't exist
-        if not self.qilowatt_client:
-            _LOGGER.debug("MQTT client not initialized, skipping data update")
-            return
-
-        # Check connection status using the connected property
-        if not self.qilowatt_client.connected:
-            _LOGGER.debug("MQTT client not connected, skipping data update")
-            return
-
-        # Fetch latest data from the primary inverter
+        Called by qilowatt-py on its sensor timer thread immediately before each
+        SENSOR publish, so every payload carries data read milliseconds earlier.
+        Only reads hass.states, which is safe from any thread. Raising here is
+        fine: the library logs it and publishes the last good data instead.
+        """
         energy_data = self.inverter.get_energy_data()
         metrics_data = self.inverter.get_metrics_data()
 
@@ -298,9 +278,7 @@ class MQTTClient:
                     metrics_data, secondary_metrics
                 )
 
-        # Set data in the qilowatt client
-        self.qw_device.set_energy_data(energy_data)
-        self.qw_device.set_metrics_data(metrics_data)
+        return energy_data, metrics_data
 
     @staticmethod
     def _aggregate_energy_data(primary, secondaries):
