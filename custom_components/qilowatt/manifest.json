@@ -7,6 +7,7 @@
   "documentation": "https://github.com/qilowatt/qilowatt-ha",
   "integration_type": "hub",
   "iot_class": "cloud_polling",
-  "requirements": ["qilowatt==2026.10.6"],
-  "version": "2026.10.7"
+  "issue_tracker": "https://github.com/qilowatt/qilowatt-ha/issues",
+  "requirements": ["qilowatt==2026.10.7"],
+  "version": "2026.10.8"
 }
