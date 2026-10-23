@@ -1,0 +1,2 @@
+pytest-homeassistant-custom-component
+qilowatt==2026.10.3

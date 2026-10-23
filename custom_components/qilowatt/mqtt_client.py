@@ -4,16 +4,110 @@ import asyncio
 import logging
 
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.const import __version__ as HA_VERSION
 from homeassistant.loader import async_get_loaded_integration
 
-from qilowatt import EnergyData, InverterDevice, MetricsData, QilowattMQTTClient, WorkModeCommand
+from qilowatt import (
+    AuthenticationError,
+    EnergyData,
+    InverterDevice,
+    MetricsData,
+    QilowattMQTTClient,
+    WorkModeCommand,
+)
 
 from .const import CONF_SECONDARY_DEVICE_IDS, DOMAIN
 from .inverter import get_inverter_class
 
 _LOGGER = logging.getLogger(__name__)
+
+# Rejected CONNACKs tolerated before the library gives up and we ask for new
+# credentials. paho retries after 10 s then 20 s, so this is about half a
+# minute of refusals: enough to ride out a broker hiccup, short enough that a
+# rotated password shows up as a repair quickly.
+MAX_AUTH_RETRIES = 2
+
+# How long the config flow waits for the broker to accept or reject a login.
+VALIDATE_TIMEOUT = 20.0
+
+
+class CannotConnect(HomeAssistantError):
+    """The broker could not be reached or did not answer."""
+
+
+class InvalidAuth(HomeAssistantError):
+    """The broker rejected the credentials."""
+
+
+async def async_validate_credentials(
+    hass: HomeAssistant, username: str, password: str, inverter_id: str
+) -> None:
+    """Connect once to check the credentials; raise InvalidAuth or CannotConnect.
+
+    Uses a throwaway client with no retries so a rejection is reported on the
+    first CONNACK. One deadline (VALIDATE_TIMEOUT) covers both the blocking
+    connect (DNS, TCP, TLS) and the wait for the broker's answer, so the form
+    never hangs longer than that. The client is always disconnected afterwards.
+    """
+    loop = asyncio.get_running_loop()
+    outcome: asyncio.Future = loop.create_future()
+    holder: dict[str, QilowattMQTTClient] = {}
+
+    def _settle(value):
+        if not outcome.done():
+            outcome.set_result(value)
+
+    def _on_connection(connected: bool):
+        if connected:
+            loop.call_soon_threadsafe(_settle, None)
+
+    def _on_error(error: Exception):
+        loop.call_soon_threadsafe(_settle, error)
+
+    def _build_and_connect():
+        device = InverterDevice(device_id=inverter_id)
+        client = QilowattMQTTClient(
+            mqtt_username=username,
+            mqtt_password=password,
+            device=device,
+            max_auth_retries=0,
+        )
+        client.add_connection_callback(_on_connection)
+        client.add_error_callback(_on_error)
+        # Published before connect() so cleanup can reach the client even if
+        # the deadline expires while connect() is still blocking.
+        holder["client"] = client
+        client.connect()
+
+    timed_out = False
+    try:
+        async with asyncio.timeout(VALIDATE_TIMEOUT):
+            await hass.async_add_executor_job(_build_and_connect)
+            error = await outcome
+    # TimeoutError is a subclass of OSError, so it must be caught first or the
+    # deadline expiry would be handled as a connection error with timed_out
+    # still False, and the cleanup below would then be awaited.
+    except TimeoutError as err:
+        timed_out = True
+        raise CannotConnect("No answer from the Qilowatt broker") from err
+    except OSError as err:
+        raise CannotConnect(f"Could not reach the Qilowatt broker: {err}") from err
+    finally:
+        client = holder.get("client")
+        if client is not None:
+            cleanup = hass.async_add_executor_job(client.disconnect)
+            # After a timeout the executor may still be inside connect();
+            # disconnect() waits for it, so let the cleanup finish in the
+            # background instead of holding the form past its deadline.
+            if not timed_out:
+                await cleanup
+
+    if isinstance(error, AuthenticationError):
+        raise InvalidAuth("Qilowatt rejected the MQTT credentials") from error
+    if error is not None:
+        raise CannotConnect(str(error)) from error
 
 
 class MQTTClient:
@@ -78,10 +172,13 @@ class MQTTClient:
             mqtt_username=self.mqtt_username,
             mqtt_password=self.mqtt_password,
             device=self.qw_device,
+            max_auth_retries=MAX_AUTH_RETRIES,
         )
         self.qw_device.set_command_callback(self._on_command_received)
         # Add connection status callback
         self.qilowatt_client.add_connection_callback(self._on_connection_status_changed)
+        # Told once when the library gives up (e.g. credentials rejected)
+        self.qilowatt_client.add_error_callback(self._on_client_error)
 
     async def start(self):
         """Start the Qilowatt MQTT client."""
@@ -89,8 +186,16 @@ class MQTTClient:
         # Run the blocking initialization in the executor
         if self.qilowatt_client is None:
             await self.hass.async_add_executor_job(self.initialize_client)
-        # Run the blocking connect in the executor too
-        await self.hass.async_add_executor_job(self.qilowatt_client.connect)
+        # Run the blocking connect in the executor too. A broker that cannot be
+        # reached right now (HA booting before the network is up, DNS not yet
+        # resolving) is a reason to retry setup later, not to fail it. A refused
+        # login does not raise here; it arrives through _on_client_error.
+        try:
+            await self.hass.async_add_executor_job(self.qilowatt_client.connect)
+        except OSError as err:
+            raise ConfigEntryNotReady(
+                f"Could not connect to the Qilowatt broker: {err}"
+            ) from err
 
         # Start data update loop; the config entry cancels this task on unload
         self._update_task = self.config_entry.async_create_background_task(
@@ -118,6 +223,23 @@ class MQTTClient:
             f"{DOMAIN}_workmode_update_{self.inverter_id}",
             command,
         )
+
+    def _on_client_error(self, error: Exception):
+        """Handle the library giving up on the connection.
+
+        Runs on the MQTT network thread. For rejected credentials, start a
+        reauth flow so the user gets a repair prompt asking for new ones.
+        """
+        if isinstance(error, AuthenticationError):
+            _LOGGER.error(
+                "Qilowatt rejected the MQTT credentials for %s; asking for new ones",
+                self.inverter_id,
+            )
+            self.hass.loop.call_soon_threadsafe(
+                self.config_entry.async_start_reauth, self.hass
+            )
+        else:
+            _LOGGER.error("Qilowatt MQTT client stopped: %s", error)
 
     def _on_connection_status_changed(self, connected: bool):
         """Handle MQTT connection status changes."""
