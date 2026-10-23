@@ -1,6 +1,7 @@
 """Setup, migration and runtime auth-failure handling."""
 
 import asyncio
+import threading
 import time
 from unittest.mock import patch
 
@@ -91,6 +92,7 @@ class FakeQilowattClient:
         self._conn = []
         self._err = []
         self.disconnected = False
+        self.connect_finished = threading.Event()
         FakeQilowattClient.instances.append(self)
 
     def add_connection_callback(self, cb):
@@ -100,20 +102,26 @@ class FakeQilowattClient:
         self._err.append(cb)
 
     def connect(self):
-        if isinstance(self.outcome, Exception):
-            raise self.outcome
-        if self.outcome == "stall":
-            # Blocking DNS/TCP/TLS that takes longer than the deadline
-            time.sleep(0.3)
-            return
-        if self.outcome == "ok":
-            for cb in self._conn:
-                cb(True)
-        elif self.outcome == "auth":
-            for cb in self._err:
-                cb(AuthenticationError("Authentication failed"))
+        try:
+            if isinstance(self.outcome, Exception):
+                raise self.outcome
+            if self.outcome == "stall":
+                # Blocking DNS/TCP/TLS that takes longer than the deadline
+                time.sleep(0.3)
+                return
+            if self.outcome == "ok":
+                for cb in self._conn:
+                    cb(True)
+            elif self.outcome == "auth":
+                for cb in self._err:
+                    cb(AuthenticationError("Authentication failed"))
+        finally:
+            self.connect_finished.set()
 
     def disconnect(self):
+        # Like the real client: disconnect() takes the lock that connect()
+        # holds, so it cannot complete until a stalled connect() returns.
+        self.connect_finished.wait(timeout=2.0)
         self.disconnected = True
 
 

@@ -86,11 +86,14 @@ async def async_validate_credentials(
         async with asyncio.timeout(VALIDATE_TIMEOUT):
             await hass.async_add_executor_job(_build_and_connect)
             error = await outcome
-    except OSError as err:
-        raise CannotConnect(f"Could not reach the Qilowatt broker: {err}") from err
+    # TimeoutError is a subclass of OSError, so it must be caught first or the
+    # deadline expiry would be handled as a connection error with timed_out
+    # still False, and the cleanup below would then be awaited.
     except TimeoutError as err:
         timed_out = True
         raise CannotConnect("No answer from the Qilowatt broker") from err
+    except OSError as err:
+        raise CannotConnect(f"Could not reach the Qilowatt broker: {err}") from err
     finally:
         client = holder.get("client")
         if client is not None:
