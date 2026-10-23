@@ -2,6 +2,7 @@
 
 from unittest.mock import patch
 
+from homeassistant.helpers import entity_registry as er
 from qilowatt import EnergyData, MetricsData
 
 from custom_components.qilowatt.const import DATA_CLIENT, DOMAIN
@@ -89,3 +90,88 @@ async def test_read_inverter_data_survives_a_failing_secondary(hass, config_entr
          patch.object(secondary, "get_energy_data", side_effect=RuntimeError("entities missing")):
         energy, metrics = client.read_inverter_data()
     assert energy.Power == [1.0, 1.0, 1.0] and metrics.BatterySOC == [1]
+
+
+async def test_unavailable_primary_yields_no_data_instead_of_zeros(hass, config_entry):
+    client = MQTTClient(hass, config_entry)
+    with patch.object(client.inverter, "is_available", return_value=False), \
+         patch.object(client.inverter, "get_energy_data") as read_energy:
+        assert client.read_inverter_data() == (None, None)
+    read_energy.assert_not_called()
+
+
+async def test_unavailable_secondary_is_left_out_of_the_aggregate(hass, config_entry):
+    client = MQTTClient(hass, config_entry)
+    secondary = MQTTClient(hass, config_entry).inverter
+    client.secondary_inverters = [secondary]
+    with patch.object(client.inverter, "get_energy_data", return_value=_energy([1.0, 1.0, 1.0])), \
+         patch.object(client.inverter, "get_metrics_data", return_value=_metrics(80, [1.0, 1.0, 1.0], [0.0, 0.0, 0.0])), \
+         patch.object(secondary, "is_available", return_value=False), \
+         patch.object(secondary, "get_metrics_data") as read_secondary:
+        energy, metrics = client.read_inverter_data()
+    read_secondary.assert_not_called()
+    assert energy.Power == [1.0, 1.0, 1.0]
+    assert metrics.BatterySOC == [80]          # not [80, 0]
+
+
+async def test_entities_going_unavailable_during_the_read_skip_the_slot(hass, config_entry):
+    """The check is repeated after the reads: a state change between them must not pass zeros."""
+    client = MQTTClient(hass, config_entry)
+    secondary = MQTTClient(hass, config_entry).inverter
+    client.secondary_inverters = [secondary]
+    zeros = _energy([0.0, 0.0, 0.0])
+    with patch.object(client.inverter, "is_available", side_effect=[True, False]), \
+         patch.object(client.inverter, "get_energy_data", return_value=zeros), \
+         patch.object(client.inverter, "get_metrics_data", return_value=_metrics(0, [0.0, 0.0, 0.0], [0.0, 0.0, 0.0])):
+        assert client.read_inverter_data() == (None, None)
+
+    with patch.object(client.inverter, "is_available", return_value=True), \
+         patch.object(client.inverter, "get_energy_data", return_value=_energy([1.0, 1.0, 1.0])), \
+         patch.object(client.inverter, "get_metrics_data", return_value=_metrics(80, [1.0, 1.0, 1.0], [0.0, 0.0, 0.0])), \
+         patch.object(secondary, "is_available", side_effect=[True, False]), \
+         patch.object(secondary, "get_energy_data", return_value=zeros), \
+         patch.object(secondary, "get_metrics_data", return_value=_metrics(0, [0.0, 0.0, 0.0], [0.0, 0.0, 0.0])):
+        energy, metrics = client.read_inverter_data()
+    assert energy.Power == [1.0, 1.0, 1.0]
+    assert metrics.BatterySOC == [80]          # the secondary's 0 was dropped
+
+
+async def test_is_available_follows_the_core_entities(hass, solarman_device, config_entry):
+    registry = er.async_get(hass)
+    for object_id in ("deye_grid_l1_voltage", "deye_battery", "deye_pv1_power"):
+        registry.async_get_or_create(
+            "sensor", "solarman", object_id, suggested_object_id=object_id,
+            device_id=solarman_device.id,
+        )
+    hass.states.async_set("sensor.deye_grid_l1_voltage", "231.5")
+    hass.states.async_set("sensor.deye_battery", "83")
+    hass.states.async_set("sensor.deye_pv1_power", "unavailable")
+    inverter = MQTTClient(hass, config_entry).inverter
+
+    assert inverter.is_available()             # a non-core entity being down does not matter
+
+    hass.states.async_set("sensor.deye_battery", "unavailable")
+    assert not inverter.is_available()
+
+    hass.states.async_set("sensor.deye_battery", "84")
+    hass.states.async_set("sensor.deye_grid_l1_voltage", "unknown")
+    assert not inverter.is_available()
+
+    hass.states.async_set("sensor.deye_grid_l1_voltage", "0")
+    assert inverter.is_available()             # grid down is a real reading, not a missing one
+
+
+async def test_availability_changes_are_logged_once(hass, config_entry, caplog):
+    client = MQTTClient(hass, config_entry)
+    available = {"v": False}
+    with patch.object(client.inverter, "is_available", side_effect=lambda: available["v"]), \
+         patch.object(client.inverter, "get_energy_data", return_value=_energy([1.0, 1.0, 1.0])), \
+         patch.object(client.inverter, "get_metrics_data", return_value=_metrics(1, [1.0, 1.0, 1.0], [0.0, 0.0, 0.0])), \
+         caplog.at_level("INFO", logger="custom_components.qilowatt"):
+        for _ in range(3):
+            client.read_inverter_data()
+        available["v"] = True
+        for _ in range(3):
+            client.read_inverter_data()
+    assert sum("unavailable entities" in r.message for r in caplog.records) == 1
+    assert sum("available again" in r.message for r in caplog.records) == 1

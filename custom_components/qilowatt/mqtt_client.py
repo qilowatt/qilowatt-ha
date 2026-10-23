@@ -137,6 +137,9 @@ class MQTTClient:
             )
             self.secondary_inverters.append(secondary)
 
+        # Inverters currently reported as unavailable, for one log line per change
+        self._unavailable: set = set()
+
         self.qw_device = InverterDevice(device_id=self.inverter_id)
 
         # Set qw_device version data (convert AwesomeVersion to str)
@@ -254,11 +257,18 @@ class MQTTClient:
 
         Called by qilowatt-py on its sensor timer thread immediately before each
         SENSOR publish, so every payload carries data read milliseconds earlier.
-        Only reads hass.states, which is safe from any thread. Raising here is
-        fine: the library logs it and publishes the last good data instead.
+        Only reads hass.states, which is safe from any thread.
+
+        Returns (None, None) while the primary inverter's core entities are
+        unavailable (its integration lost the device, or is tearing down):
+        the library then skips that SENSOR slot. An unavailable secondary is
+        left out of the aggregate. Zeros are never reported in place of
+        missing data.
         """
-        energy_data = self.inverter.get_energy_data()
-        metrics_data = self.inverter.get_metrics_data()
+        primary = self._read(self.inverter)
+        if primary is None:
+            return None, None
+        energy_data, metrics_data = primary
 
         # Aggregate with secondary inverters if present
         if self.secondary_inverters:
@@ -266,10 +276,13 @@ class MQTTClient:
             secondary_metrics = []
             for sec in self.secondary_inverters:
                 try:
-                    secondary_energy.append(sec.get_energy_data())
-                    secondary_metrics.append(sec.get_metrics_data())
+                    reading = self._read(sec)
                 except Exception as e:  # pylint: disable=broad-except
                     _LOGGER.error("Error fetching secondary inverter data: %s", e)
+                    continue
+                if reading is not None:
+                    secondary_energy.append(reading[0])
+                    secondary_metrics.append(reading[1])
 
             if secondary_energy:
                 energy_data = self._aggregate_energy_data(energy_data, secondary_energy)
@@ -279,6 +292,39 @@ class MQTTClient:
                 )
 
         return energy_data, metrics_data
+
+    def _read(self, inverter):
+        """Return (energy, metrics) for an available inverter, else None.
+
+        Availability is checked before the reads, so an inverter that is gone
+        is not read (and its fields not warned about) every 10 s, and again
+        after them: the state machine is written from the event loop while
+        this runs on the timer thread, and an entity going unavailable
+        between the check and a read would otherwise turn into a 0 in the
+        payload. Entities do not come back within one read, so a second
+        clean check means every value was read while available.
+        """
+        if not self._check_available(inverter):
+            return None
+        reading = inverter.get_energy_data(), inverter.get_metrics_data()
+        if not self._check_available(inverter):
+            return None
+        return reading
+
+    def _check_available(self, inverter) -> bool:
+        """Return inverter.is_available(), logging each change once."""
+        available = inverter.is_available()
+        was_unavailable = inverter in self._unavailable
+        if not available and not was_unavailable:
+            self._unavailable.add(inverter)
+            _LOGGER.warning(
+                "Inverter %s has unavailable entities; not reporting its data",
+                inverter.device_id,
+            )
+        elif available and was_unavailable:
+            self._unavailable.discard(inverter)
+            _LOGGER.info("Inverter %s is available again", inverter.device_id)
+        return available
 
     @staticmethod
     def _aggregate_energy_data(primary, secondaries):
