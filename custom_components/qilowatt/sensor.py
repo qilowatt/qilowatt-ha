@@ -110,7 +110,6 @@ class WorkModeSensor(SensorEntity):
             name=self.entry.title,
             manufacturer="Qilowatt",
             model=self.entry.data["inverter_model"],
-            via_device=(DOMAIN, self.entry.entry_id),
         )
 
     async def async_added_to_hass(self):
