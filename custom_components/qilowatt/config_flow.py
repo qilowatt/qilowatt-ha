@@ -246,10 +246,16 @@ class QilowattConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         "inverter_integration": "Huawei",
                     }
                 if domain == "victron_qw_addon":
-                    # Victron inverter integration
+                    # Victron inverter integration (legacy addon)
                     inverters[device.id] = {
                         "name": device.name or device_id,
                         "inverter_integration": "Victron",
+                    }
+                if domain == "victron_gx":
+                    # HA native Victron GX integration
+                    inverters[device.id] = {
+                        "name": device.name or device_id,
+                        "inverter_integration": "VictronGX",
                     }
             if (device.name and "Deye" in device.name) and (device.model and "esp32" in device.model):
                 inverters[device.id] = {
