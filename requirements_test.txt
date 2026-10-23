@@ -1,2 +1,2 @@
 pytest-homeassistant-custom-component
-qilowatt==2026.10.5
+qilowatt==2026.10.6

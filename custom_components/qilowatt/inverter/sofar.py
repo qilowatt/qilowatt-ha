@@ -12,6 +12,8 @@ _LOGGER = logging.getLogger(__name__)
 class SofarInverter(BaseInverter):
     """Implementation for Sofar integrated inverters."""
 
+    AVAILABILITY_ENTITIES = ("sofar_voltage_l1", "sofar_battery_capacity_total")
+
     def __init__(self, hass: HomeAssistant, config_entry, device_id=None):
         super().__init__(hass, config_entry, device_id)
         self.hass = hass

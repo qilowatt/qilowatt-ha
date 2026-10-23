@@ -12,6 +12,8 @@ _LOGGER = logging.getLogger(__name__)
 class SolarmanInverter(BaseInverter):
     """Implementation for Solarman integrated inverters."""
 
+    AVAILABILITY_ENTITIES = ("grid_l1_voltage", "_battery")
+
     def __init__(self, hass: HomeAssistant, config_entry, device_id=None):
         super().__init__(hass, config_entry, device_id)
         self.hass = hass

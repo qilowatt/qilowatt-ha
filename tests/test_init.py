@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 import pytest
 from homeassistant import config_entries
+from homeassistant.const import EVENT_HOMEASSISTANT_STOP
 from homeassistant.exceptions import ConfigEntryNotReady
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from qilowatt import AuthenticationError
@@ -176,3 +177,27 @@ async def test_validate_credentials_deadline_covers_blocking_connect(hass, fake_
     # The client created inside the stalled executor job is still cleaned up
     await hass.async_block_till_done(wait_background_tasks=True)
     assert fake_qw.instances[-1].disconnected
+
+
+async def test_homeassistant_stop_stops_publishing_before_unload(hass, config_entry):
+    """Shutdown stops the timers at EVENT_HOMEASSISTANT_STOP, not at (the never
+    happening) unload, so no read can see entities other integrations have
+    already marked unavailable."""
+    FakeQilowattClient.instances.clear()
+    FakeQilowattClient.outcome = "ok"
+    with patch("custom_components.qilowatt.mqtt_client.QilowattMQTTClient", FakeQilowattClient):
+        await hass.config_entries.async_setup(config_entry.entry_id)
+        await hass.async_block_till_done()
+        client = hass.data[DOMAIN][config_entry.entry_id][DATA_CLIENT]
+        assert client.qw_device._sensor_timer_thread is not None
+
+        hass.bus.async_fire(EVENT_HOMEASSISTANT_STOP)
+        await hass.async_block_till_done()
+
+        assert FakeQilowattClient.instances[0].disconnected
+        assert client.qw_device._sensor_timer_thread is None
+        assert config_entry.state is config_entries.ConfigEntryState.LOADED
+
+        # A later unload (or a second stop) must still be harmless
+        assert await hass.config_entries.async_unload(config_entry.entry_id)
+        await hass.async_block_till_done()

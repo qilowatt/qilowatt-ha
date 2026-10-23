@@ -12,6 +12,8 @@ _LOGGER = logging.getLogger(__name__)
 class EspHomeInverter(BaseInverter):
     """Implementation for EspHome integrated inverters."""
 
+    AVAILABILITY_ENTITIES = ("_grid_voltage_l1", "_battery_capacity")
+
     def __init__(self, hass: HomeAssistant, config_entry, device_id=None):
         super().__init__(hass, config_entry, device_id)
         self.hass = hass

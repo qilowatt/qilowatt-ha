@@ -12,6 +12,8 @@ _LOGGER = logging.getLogger(__name__)
 class VictronInverter(BaseInverter):
     """Implementation for Victron cerbo  integrated inverters."""
 
+    AVAILABILITY_ENTITIES = ("victron_qw_input_voltage_phase_1", "victron_qw_battery_state_of_charge")
+
     def __init__(self, hass: HomeAssistant, config_entry, device_id=None):
         super().__init__(hass, config_entry, device_id)
         self.hass = hass

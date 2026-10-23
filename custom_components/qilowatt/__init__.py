@@ -3,7 +3,7 @@
 import logging
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import Platform
+from homeassistant.const import EVENT_HOMEASSISTANT_STOP, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 
@@ -62,6 +62,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     # Start the client asynchronously
     await client.start()
+
+    # Config entries are not unloaded when Home Assistant shuts down, so stop
+    # publishing at the first shutdown stage. The inverter integrations tear
+    # down later (ESPHome on EVENT_HOMEASSISTANT_CLOSE) and their entities go
+    # unavailable; a read after that would send Qilowatt a payload of zeros.
+    async def _async_stop(_event) -> None:
+        await client.async_stop()
+
+    entry.async_on_unload(
+        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, _async_stop)
+    )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 

@@ -6,6 +6,8 @@ from .base_inverter import BaseInverter
 class HuaweiInverter(BaseInverter):
     """Implementation for Huawei integrated inverters."""
 
+    AVAILABILITY_ENTITIES = ("power_meter_phase_a_voltage", "batteries_state_of_capacity")
+
     def __init__(self, hass: HomeAssistant, config_entry, device_id=None):
         super().__init__(hass, config_entry, device_id)
         self.hass = hass
