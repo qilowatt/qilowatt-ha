@@ -218,6 +218,9 @@ class MQTTClient:
         battery_temperature = list(primary.BatteryTemperature)
         load_power = list(primary.LoadPower)
         load_current = list(primary.LoadCurrent)
+        gen_voltage = list(primary.GenVoltage)
+        gen_power = list(primary.GenPower)
+        gen_current = list(primary.GenCurrent)
         grid_export_limit = primary.GridExportLimit
 
         for sec in secondaries:
@@ -236,6 +239,10 @@ class MQTTClient:
                 load_power[i] += sec.LoadPower[i]
             for i in range(min(len(load_current), len(sec.LoadCurrent))):
                 load_current[i] += sec.LoadCurrent[i]
+            for i in range(min(len(gen_power), len(sec.GenPower))):
+                gen_power[i] += sec.GenPower[i]
+            for i in range(min(len(gen_current), len(sec.GenCurrent))):
+                gen_current[i] += sec.GenCurrent[i]
 
             grid_export_limit += sec.GridExportLimit
 
@@ -250,6 +257,9 @@ class MQTTClient:
             BatteryTemperature=battery_temperature,
             LoadPower=load_power,
             LoadCurrent=load_current,
+            GenVoltage=gen_voltage,
+            GenPower=gen_power,
+            GenCurrent=gen_current,
             AlarmCodes=list(primary.AlarmCodes),
             InverterStatus=primary.InverterStatus,
             InverterTemperature=primary.InverterTemperature,
