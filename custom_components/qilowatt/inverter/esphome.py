@@ -58,6 +58,34 @@ class EspHomeInverter(BaseInverter):
             _LOGGER.warning(f"State of {entity_id} is unavailable or unknown")
         return default
 
+    def get_optional_float(self, entity_id):
+        """Return a sensor state as float, or None if it is missing or unavailable.
+
+        Unlike get_state_float this does not log, so it suits readings that only
+        some ESPHome configurations expose, such as the generator port.
+        """
+        state = self.find_entity_state(entity_id)
+        if state is None or state.state in ("unknown", "unavailable", ""):
+            return None
+        try:
+            return float(state.state)
+        except ValueError:
+            return None
+
+    def get_generator_data(self):
+        """Return (voltage, power, current) per phase for the generator port.
+
+        Reads the Generator Voltage L1..L3 and Generator Power L1..L3 sensors
+        defined in examples/esphome-lilygo-tcan485.yaml (Deye registers
+        661-666). Configurations without them report zeros.
+        """
+        voltage = [self.get_optional_float(f"_generator_voltage_l{i}") for i in (1, 2, 3)]
+        power = [self.get_optional_float(f"_generator_power_l{i}") for i in (1, 2, 3)]
+        voltage = [v if v is not None else 0.0 for v in voltage]
+        power = [x if x is not None else 0.0 for x in power]
+        current = [round(x / v, 2) if v else 0.0 for x, v in zip(power, voltage)]
+        return voltage, power, current
+
     def get_energy_data(self):
         """Retrieve ENERGY data."""
         power = [
@@ -113,6 +141,7 @@ class EspHomeInverter(BaseInverter):
         grid_export_limit = self.get_state_float("_max_solar_sell_power")
         battery_temperature = [self.get_state_float("_battery_temperature")]
         inverter_temperature = self.get_state_float("_heat_sink_temperature")
+        gen_voltage, gen_power, gen_current = self.get_generator_data()
 
         return MetricsData(
             PvPower=pv_power,
@@ -125,6 +154,9 @@ class EspHomeInverter(BaseInverter):
             BatteryPower=battery_power,
             BatteryCurrent=battery_current,
             BatteryVoltage=battery_voltage,
+            GenVoltage=gen_voltage,
+            GenPower=gen_power,
+            GenCurrent=gen_current,
             InverterStatus=inverter_status,
             GridExportLimit=grid_export_limit,
             BatteryTemperature=battery_temperature,
