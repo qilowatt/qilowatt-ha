@@ -265,23 +265,24 @@ class MQTTClient:
         left out of the aggregate. Zeros are never reported in place of
         missing data.
         """
-        if not self._check_available(self.inverter):
+        primary = self._read(self.inverter)
+        if primary is None:
             return None, None
-        energy_data = self.inverter.get_energy_data()
-        metrics_data = self.inverter.get_metrics_data()
+        energy_data, metrics_data = primary
 
         # Aggregate with secondary inverters if present
         if self.secondary_inverters:
             secondary_energy = []
             secondary_metrics = []
             for sec in self.secondary_inverters:
-                if not self._check_available(sec):
-                    continue
                 try:
-                    secondary_energy.append(sec.get_energy_data())
-                    secondary_metrics.append(sec.get_metrics_data())
+                    reading = self._read(sec)
                 except Exception as e:  # pylint: disable=broad-except
                     _LOGGER.error("Error fetching secondary inverter data: %s", e)
+                    continue
+                if reading is not None:
+                    secondary_energy.append(reading[0])
+                    secondary_metrics.append(reading[1])
 
             if secondary_energy:
                 energy_data = self._aggregate_energy_data(energy_data, secondary_energy)
@@ -291,6 +292,24 @@ class MQTTClient:
                 )
 
         return energy_data, metrics_data
+
+    def _read(self, inverter):
+        """Return (energy, metrics) for an available inverter, else None.
+
+        Availability is checked before the reads, so an inverter that is gone
+        is not read (and its fields not warned about) every 10 s, and again
+        after them: the state machine is written from the event loop while
+        this runs on the timer thread, and an entity going unavailable
+        between the check and a read would otherwise turn into a 0 in the
+        payload. Entities do not come back within one read, so a second
+        clean check means every value was read while available.
+        """
+        if not self._check_available(inverter):
+            return None
+        reading = inverter.get_energy_data(), inverter.get_metrics_data()
+        if not self._check_available(inverter):
+            return None
+        return reading
 
     def _check_available(self, inverter) -> bool:
         """Return inverter.is_available(), logging each change once."""
