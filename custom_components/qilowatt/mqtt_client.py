@@ -47,10 +47,13 @@ async def async_validate_credentials(
     """Connect once to check the credentials; raise InvalidAuth or CannotConnect.
 
     Uses a throwaway client with no retries so a rejection is reported on the
-    first CONNACK. The client is always disconnected afterwards.
+    first CONNACK. One deadline (VALIDATE_TIMEOUT) covers both the blocking
+    connect (DNS, TCP, TLS) and the wait for the broker's answer, so the form
+    never hangs longer than that. The client is always disconnected afterwards.
     """
     loop = asyncio.get_running_loop()
     outcome: asyncio.Future = loop.create_future()
+    holder: dict[str, QilowattMQTTClient] = {}
 
     def _settle(value):
         if not outcome.done():
@@ -73,20 +76,30 @@ async def async_validate_credentials(
         )
         client.add_connection_callback(_on_connection)
         client.add_error_callback(_on_error)
+        # Published before connect() so cleanup can reach the client even if
+        # the deadline expires while connect() is still blocking.
+        holder["client"] = client
         client.connect()
-        return client
 
+    timed_out = False
     try:
-        client = await hass.async_add_executor_job(_build_and_connect)
+        async with asyncio.timeout(VALIDATE_TIMEOUT):
+            await hass.async_add_executor_job(_build_and_connect)
+            error = await outcome
     except OSError as err:
         raise CannotConnect(f"Could not reach the Qilowatt broker: {err}") from err
-
-    try:
-        error = await asyncio.wait_for(outcome, VALIDATE_TIMEOUT)
     except TimeoutError as err:
+        timed_out = True
         raise CannotConnect("No answer from the Qilowatt broker") from err
     finally:
-        await hass.async_add_executor_job(client.disconnect)
+        client = holder.get("client")
+        if client is not None:
+            cleanup = hass.async_add_executor_job(client.disconnect)
+            # After a timeout the executor may still be inside connect();
+            # disconnect() waits for it, so let the cleanup finish in the
+            # background instead of holding the form past its deadline.
+            if not timed_out:
+                await cleanup
 
     if isinstance(error, AuthenticationError):
         raise InvalidAuth("Qilowatt rejected the MQTT credentials") from error

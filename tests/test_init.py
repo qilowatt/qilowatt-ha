@@ -1,6 +1,7 @@
 """Setup, migration and runtime auth-failure handling."""
 
 import asyncio
+import time
 from unittest.mock import patch
 
 import pytest
@@ -101,6 +102,10 @@ class FakeQilowattClient:
     def connect(self):
         if isinstance(self.outcome, Exception):
             raise self.outcome
+        if self.outcome == "stall":
+            # Blocking DNS/TCP/TLS that takes longer than the deadline
+            time.sleep(0.3)
+            return
         if self.outcome == "ok":
             for cb in self._conn:
                 cb(True)
@@ -145,4 +150,19 @@ async def test_validate_credentials_times_out(hass, fake_qw):
     with patch("custom_components.qilowatt.mqtt_client.VALIDATE_TIMEOUT", 0.05):
         with pytest.raises(CannotConnect):
             await async_validate_credentials(hass, "u", "p", "QW123")
+    assert fake_qw.instances[-1].disconnected
+
+
+async def test_validate_credentials_deadline_covers_blocking_connect(hass, fake_qw):
+    """A stalled connect() must not hold the form past VALIDATE_TIMEOUT."""
+    fake_qw.outcome = "stall"
+    with patch("custom_components.qilowatt.mqtt_client.VALIDATE_TIMEOUT", 0.05):
+        started = time.monotonic()
+        with pytest.raises(CannotConnect):
+            await async_validate_credentials(hass, "u", "p", "QW123")
+        elapsed = time.monotonic() - started
+    assert elapsed < 0.25, f"form waited {elapsed:.2f}s for a stalled connect"
+
+    # The client created inside the stalled executor job is still cleaned up
+    await hass.async_block_till_done(wait_background_tasks=True)
     assert fake_qw.instances[-1].disconnected
