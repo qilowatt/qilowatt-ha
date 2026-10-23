@@ -20,8 +20,6 @@ class VictronGXInverter(BaseInverter):
     be chosen in the config flow.
     """
 
-    AVAILABILITY_ENTITIES = ("grid_voltage_l1", "battery_soc")
-
     def __init__(self, hass: HomeAssistant, config_entry, device_id=None):
         super().__init__(hass, config_entry, device_id)
         self.device_id = device_id or config_entry.data["device_id"]
@@ -40,6 +38,26 @@ class VictronGXInverter(BaseInverter):
         for entity in entity_reg.entities.values():
             if entity.device_id in installation_device_ids:
                 self.inverter_entities[entity.entity_id] = entity.name
+
+    def is_available(self) -> bool:
+        """Check availability across device-level and system-level entities.
+
+        Victron GX spreads sensors across multiple devices and setups may
+        expose only system-level aggregates.  For each essential measurement
+        group (grid, battery) we try several suffixes and flag unavailable
+        as soon as a found entity reports so.
+        """
+        for suffixes in (
+            ("grid_voltage_l1", "grid_power_l1", "system_grid_power_l1"),
+            ("battery_soc", "system_dc_battery_soc"),
+        ):
+            for suffix in suffixes:
+                state = self.find_entity_state(suffix)
+                if state is not None:
+                    if state.state in ("unavailable", "unknown", ""):
+                        return False
+                    break
+        return True
 
     def find_entity_state(self, entity_id):
         """Find a state by entity_id suffix across the whole installation."""
@@ -130,14 +148,14 @@ class VictronGXInverter(BaseInverter):
 
     def get_metrics_data(self):
         """Retrieve METRICS data."""
-        pv_power = [self._first_float("system_dc_pv_power", "solarcharger_power")]
+        pv_power = [self._first_float("system_dc_pv_power", "solarcharger_yield_power")]
         pv_voltage = [self.get_state_float("solarcharger_voltage")]
-        pv_current = [self._first_float("system_dc_pv_current", "solarcharger_current")]
+        pv_current = [self._first_float("system_dc_pv_current", "solarcharger_pv_current")]
 
         load_power = [
-            self._first_float("system_consumption_l1", "acload_power_l1"),
-            self._first_float("system_consumption_l2", "acload_power_l2"),
-            self._first_float("system_consumption_l3", "acload_power_l3"),
+            self._first_float("system_consumption_power_l1", "acload_power_l1"),
+            self._first_float("system_consumption_power_l2", "acload_power_l2"),
+            self._first_float("system_consumption_power_l3", "acload_power_l3"),
         ]
 
         battery_soc = self._first_int("system_dc_battery_soc", "battery_soc")

@@ -106,9 +106,9 @@ def _populate_entities(hass, devices):
     sys_entities = {
         "victron_system_system_dc_pv_power": "3200.0",
         "victron_system_system_dc_pv_current": "10.5",
-        "victron_system_system_consumption_l1": "900.0",
-        "victron_system_system_consumption_l2": "450.0",
-        "victron_system_system_consumption_l3": "200.0",
+        "victron_system_system_consumption_power_l1": "900.0",
+        "victron_system_system_consumption_power_l2": "450.0",
+        "victron_system_system_consumption_power_l3": "200.0",
     }
     for obj_id, value in sys_entities.items():
         _register_entity(hass, sys_dev.id, obj_id)
@@ -194,14 +194,20 @@ async def test_availability_checks_cross_device_entities(hass, victron_gx_device
 
     assert inv.is_available()
 
+    # Battery SOC unavailable → not available
     hass.states.async_set("sensor.battery_battery_soc", "unavailable")
     assert not inv.is_available()
 
     hass.states.async_set("sensor.battery_battery_soc", "80")
     assert inv.is_available()
 
+    # Grid voltage unavailable → first found grid entity is bad → not available
     hass.states.async_set("sensor.grid_meter_grid_voltage_l1", "unknown")
     assert not inv.is_available()
+
+    # Restore grid voltage → available again
+    hass.states.async_set("sensor.grid_meter_grid_voltage_l1", "230.0")
+    assert inv.is_available()
 
 
 async def test_system_level_fallback(hass, victron_gx_devices):
@@ -226,7 +232,7 @@ async def test_system_level_fallback(hass, victron_gx_devices):
 
 
 async def test_config_flow_discovers_victron_gx(hass, victron_gx_devices):
-    """The config flow should discover victron_gx devices."""
+    """The config flow should discover one entry per installation, not per device."""
     from custom_components.qilowatt.config_flow import QilowattConfigFlow
 
     flow = QilowattConfigFlow()
@@ -237,6 +243,37 @@ async def test_config_flow_discovers_victron_gx(hass, victron_gx_devices):
         did: inv for did, inv in inverters.items()
         if inv["inverter_integration"] == "VictronGX"
     }
-    assert len(gx_inverters) == len(victron_gx_devices)
+    # All 4 devices share one config entry → only 1 entry in the list
+    assert len(gx_inverters) == 1
     for inv in gx_inverters.values():
         assert inv["inverter_integration"] == "VictronGX"
+
+
+async def test_config_flow_discovers_separate_installations(hass, victron_gx_config_entry):
+    """Two installations (different config entries) should appear as two entries."""
+    from custom_components.qilowatt.config_flow import QilowattConfigFlow
+
+    dev_reg = dr.async_get(hass)
+    dev_reg.async_get_or_create(
+        config_entry_id=victron_gx_config_entry.entry_id,
+        identifiers={("victron_gx", "inst1_system")},
+        name="Installation 1",
+    )
+
+    entry2 = MockConfigEntry(domain="victron_gx", data={})
+    entry2.add_to_hass(hass)
+    dev_reg.async_get_or_create(
+        config_entry_id=entry2.entry_id,
+        identifiers={("victron_gx", "inst2_system")},
+        name="Installation 2",
+    )
+
+    flow = QilowattConfigFlow()
+    flow.hass = hass
+    inverters = await flow._discover_inverters()
+
+    gx_inverters = {
+        did: inv for did, inv in inverters.items()
+        if inv["inverter_integration"] == "VictronGX"
+    }
+    assert len(gx_inverters) == 2
