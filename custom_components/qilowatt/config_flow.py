@@ -210,6 +210,7 @@ class QilowattConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Discover inverters in Home Assistant."""
         device_registry = dr.async_get(self.hass)
         inverters: dict[str, dict[str, str]] = {}
+        seen_gx_entries: set[str] = set()
 
         for device in device_registry.devices.values():
             for identifier in device.identifiers:
@@ -246,11 +247,21 @@ class QilowattConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         "inverter_integration": "Huawei",
                     }
                 if domain == "victron_qw_addon":
-                    # Victron inverter integration
+                    # Victron inverter integration (legacy addon)
                     inverters[device.id] = {
                         "name": device.name or device_id,
                         "inverter_integration": "Victron",
                     }
+                if domain == "victron_gx":
+                    # HA native Victron GX integration – one entry per
+                    # installation (all devices share a config entry).
+                    entry_ids = frozenset(device.config_entries)
+                    if entry_ids not in seen_gx_entries:
+                        seen_gx_entries.add(entry_ids)
+                        inverters[device.id] = {
+                            "name": device.name or device_id,
+                            "inverter_integration": "VictronGX",
+                        }
             if (device.name and "Deye" in device.name) and (device.model and "esp32" in device.model):
                 inverters[device.id] = {
                     "name": device.name,
