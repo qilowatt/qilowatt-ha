@@ -44,11 +44,11 @@ class VictronGXInverter(BaseInverter):
 
         Victron GX spreads sensors across multiple devices and setups may
         expose only system-level aggregates.  For each essential measurement
-        group (grid, battery) we try several suffixes and flag unavailable
-        as soon as a found entity reports so.
+        group (grid power, battery SOC) we try several suffixes and flag
+        unavailable as soon as a found entity reports so.
         """
         for suffixes in (
-            ("grid_voltage_l1", "grid_power_l1", "system_grid_power_l1"),
+            ("grid_power_l1", "system_grid_power_l1"),
             ("battery_soc", "system_dc_battery_soc"),
         ):
             for suffix in suffixes:

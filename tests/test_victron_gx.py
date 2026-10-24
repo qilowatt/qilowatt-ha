@@ -201,12 +201,17 @@ async def test_availability_checks_cross_device_entities(hass, victron_gx_device
     hass.states.async_set("sensor.battery_battery_soc", "80")
     assert inv.is_available()
 
-    # Grid voltage unavailable → first found grid entity is bad → not available
-    hass.states.async_set("sensor.grid_meter_grid_voltage_l1", "unknown")
+    # Grid power unavailable → not available
+    hass.states.async_set("sensor.grid_meter_grid_power_l1", "unavailable")
     assert not inv.is_available()
 
-    # Restore grid voltage → available again
-    hass.states.async_set("sensor.grid_meter_grid_voltage_l1", "230.0")
+    # Restore grid power → available again
+    hass.states.async_set("sensor.grid_meter_grid_power_l1", "1500.0")
+    assert inv.is_available()
+
+    # Grid voltage unavailable but grid power valid → still available
+    # (voltage is not an essential measurement for publishing)
+    hass.states.async_set("sensor.grid_meter_grid_voltage_l1", "unknown")
     assert inv.is_available()
 
 
