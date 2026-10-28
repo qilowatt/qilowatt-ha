@@ -1,7 +1,6 @@
 {
   "domain": "qilowatt",
   "name": "Qilowatt",
-  "categories": ["energy.solar_batteries"],
   "codeowners": ["@tanelvakker"],
   "config_flow": true,
   "dependencies": [],
