@@ -11,7 +11,7 @@ This document is a community effort, based on the collective knowledge and best 
 Before you begin, ensure you have the following:
 
 1.  **A working Home Assistant installation.**
-2.  **HACS (Home Assistant Community Store)** installed and operational.
+2.  **Home Assistant 2026.11 or newer** (uses the built-in **Marketplace**), or, on older versions, **HACS (Home Assistant Community Store)** installed and operational.
 3.  **A supported and controllable inverter integrated into Home Assistant.** You must be able to see its data (e.g., battery SOC, power) and, most importantly, **be able to change its settings** (e.g., work mode, charge/discharge power) from within Home Assistant. Without this, you cannot act on commands from Qilowatt.
 
 #### Supported Inverter Integrations
@@ -42,13 +42,24 @@ The integration communicates with Qilowatt's servers via MQTT. You will need uni
 3.  In your message, provide the email address you used to register on `app.qilowatt.it`.
 4.  You will receive a **username**, **password**, and a device **serial number**.
 
-### Step 2: Install the Integration via HACS
-1.  In your Home Assistant, navigate to **HACS**.
-2.  Go to `Integrations`, click the three dots in the top-right corner, and select **`Custom repositories`**.
-3.  Add the repository URL: `https://github.com/qilowatt/qilowatt-ha`
-4.  Select the category `Integration` and click **`Add`**.
-5.  Find the new "Qilowatt" integration in your HACS list and install it.
-6.  **Restart Home Assistant** to load the integration.
+### Step 2: Install the Integration
+
+Qilowatt is listed in the default community catalog, so you no longer need to add it as a custom repository.
+
+[![Open your Home Assistant instance and open the Qilowatt repository in the Marketplace.](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=qilowatt&repository=qilowatt-ha&category=integration)
+
+**Home Assistant 2026.11 and newer (Marketplace):**
+1.  Click the button above, or go to **Settings → Marketplace** and search for **"Qilowatt"**.
+2.  Open it and click **Install**.
+3.  **Restart Home Assistant** to load the integration.
+
+**Home Assistant 2026.10 and older (HACS):**
+1.  In your Home Assistant, navigate to **HACS** (the button above also works and opens the repository in HACS).
+2.  Search for **"Qilowatt"** and open it.
+3.  Click **Download** and confirm.
+4.  **Restart Home Assistant** to load the integration.
+
+> If you previously added `https://github.com/qilowatt/qilowatt-ha` as a custom repository, there's nothing you need to do. Existing installations keep updating, and HACS installs are migrated to the Marketplace automatically when you upgrade to Home Assistant 2026.11.
 
 ### Step 3: Configure the Integration in Home Assistant
 1.  Navigate to `Settings` > `Devices & Services` and click **`Add Integration`**.
