@@ -15,7 +15,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo, async_generate_entity_id
 from qilowatt import WorkModeCommand
 
-from .const import CONF_INVERTER_ID, DOMAIN
+from .const import CONF_INVERTER_ID, DATA_CLIENT, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -121,6 +121,13 @@ class WorkModeSensor(SensorEntity):
                 self._handle_workmode_update,
             )
         )
+        # A command that arrived before this sensor subscribed (the broker
+        # sends one right after connecting) would otherwise be lost.
+        client = self.hass.data[DOMAIN][self.entry.entry_id][DATA_CLIENT]
+        if client.last_command is not None:
+            self._attr_native_value = getattr(
+                client.last_command, self.entity_description.key, None
+            )
 
     async def _handle_workmode_update(self, command: WorkModeCommand):
         """Handle WORKMODE command updates."""
