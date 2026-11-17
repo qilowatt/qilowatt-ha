@@ -5,7 +5,7 @@ from unittest.mock import patch
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import CoreState
 from homeassistant.helpers import entity_registry as er
-from qilowatt import EnergyData, MetricsData
+from qilowatt import AuthenticationError, EnergyData, MetricsData
 
 from custom_components.qilowatt.const import DATA_CLIENT, DOMAIN
 from custom_components.qilowatt.mqtt_client import MQTTClient
@@ -202,3 +202,34 @@ async def test_publishing_waits_until_home_assistant_has_started(hass, config_en
         finally:
             await hass.config_entries.async_unload(config_entry.entry_id)
             await hass.async_block_till_done()
+
+
+async def test_deferred_start_does_not_restart_a_stopped_client(hass, config_entry):
+    """Credentials rejected, or the entry unloaded, before HA finished starting."""
+    for stop in ("auth", "unload"):
+        FakeQilowattClient.instances.clear()
+        FakeQilowattClient.outcome = "ok"
+        hass.set_state(CoreState.not_running)
+        with patch("custom_components.qilowatt.mqtt_client.QilowattMQTTClient", FakeQilowattClient), \
+             patch.object(config_entry, "async_start_reauth"):
+            await hass.config_entries.async_setup(config_entry.entry_id)
+            await hass.async_block_till_done()
+            client = hass.data[DOMAIN][config_entry.entry_id][DATA_CLIENT]
+            try:
+                if stop == "auth":
+                    # The library calls this from its network thread after stopping
+                    await hass.async_add_executor_job(
+                        client._on_client_error, AuthenticationError("rejected")
+                    )
+                else:
+                    await client.async_stop()
+
+                hass.set_state(CoreState.running)
+                hass.bus.async_fire(EVENT_HOMEASSISTANT_STARTED)
+                await hass.async_block_till_done()
+
+                assert client.qw_device._data_provider is None, stop
+                assert client.qw_device._sensor_timer_thread is None, stop
+            finally:
+                await hass.config_entries.async_unload(config_entry.entry_id)
+                await hass.async_block_till_done()

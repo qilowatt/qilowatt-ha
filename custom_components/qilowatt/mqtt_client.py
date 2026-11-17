@@ -129,6 +129,11 @@ class MQTTClient:
         # Latest WORKMODE command, read by sensors added after it arrived
         self.last_command: WorkModeCommand | None = None
 
+        # Set once the client has been stopped (unload, HA shutdown, or the
+        # library giving up), so a start deferred until Home Assistant has
+        # started cannot bring the publishing timers back afterwards.
+        self._stopped = False
+
         # Initialize the primary inverter
         inverter_class = get_inverter_class(self.inverter_model)
         self.inverter = inverter_class(self.hass, config_entry)
@@ -218,12 +223,17 @@ class MQTTClient:
 
     @callback
     def _async_start_publishing(self, _hass: HomeAssistant) -> None:
-        """Start the library's publishing timers."""
+        """Start the library's publishing timers, unless already stopped."""
+        if self._stopped:
+            return
         self.qw_device.set_data_provider(self.read_inverter_data)
 
     async def async_stop(self):
         """Stop the Qilowatt MQTT client and its publishing timers."""
         _LOGGER.debug("Stopping Qilowatt MQTT client")
+        # Before the first await: Home Assistant may finish starting while
+        # the blocking stops below run.
+        self._stopped = True
         if self.qilowatt_client:
             await self.hass.async_add_executor_job(self.qilowatt_client.disconnect)
         # disconnect() stops the timers too; this keeps it true if there was
@@ -256,7 +266,9 @@ class MQTTClient:
 
         Runs on the MQTT network thread. For rejected credentials, start a
         reauth flow so the user gets a repair prompt asking for new ones.
+        The library has already stopped its timers and will not reconnect.
         """
+        self._stopped = True
         if isinstance(error, AuthenticationError):
             _LOGGER.error(
                 "Qilowatt rejected the MQTT credentials for %s; asking for new ones",
