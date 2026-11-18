@@ -209,7 +209,7 @@ class MQTTClient:
             ) from err
 
         # The library owns the publish cadence: its sensor timer fires exactly
-        # every 10 s and pulls fresh data through the provider right before
+        # every 5 s and pulls fresh data through the provider right before
         # each publish. Registering the provider starts the timers.
         #
         # That waits until Home Assistant has started (immediately on a
@@ -336,7 +336,7 @@ class MQTTClient:
         """Return (energy, metrics) for an available inverter, else None.
 
         Availability is checked before the reads, so an inverter that is gone
-        is not read (and its fields not warned about) every 10 s, and again
+        is not read (and its fields not warned about) every 5 s, and again
         after them: the state machine is written from the event loop while
         this runs on the timer thread, and an entity going unavailable
         between the check and a read would otherwise turn into a 0 in the
