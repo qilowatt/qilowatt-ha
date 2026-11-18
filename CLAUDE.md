@@ -26,8 +26,8 @@ The `qilowatt` PyPI package (source: `../qilowatt-py/`) handles MQTT protocol de
 
 ### Data Flow
 
-1. **Outbound to Qilowatt** (exactly every 10s): qilowatt-py's sensor timer calls `MQTTClient.read_inverter_data()` (registered via `InverterDevice.set_data_provider()`) right before each publish → HA inverter adapters read `hass.states` via `get_energy_data()`/`get_metrics_data()`, secondaries are aggregated → published to `Q/{id}/SENSOR`. The library owns the cadence; the integration has no timer of its own. The provider returns `(None, None)` while the primary's core entities (`AVAILABILITY_ENTITIES` per adapter) are unavailable, and the timers are stopped on `EVENT_HOMEASSISTANT_STOP`, so zeros are never sent for missing data.
-2. **Inbound from Qilowatt**: Commands arrive on `Q/{id}/cmnd/backlog` as `WORKMODE {...}` → `InverterDevice.handle_command()` parses to `WorkModeCommand` → callback dispatches to HA sensors via `async_dispatcher_send`
+1. **Outbound to Qilowatt** (exactly every 5s): qilowatt-py's sensor timer calls `MQTTClient.read_inverter_data()` (registered via `InverterDevice.set_data_provider()`) right before each publish → HA inverter adapters read `hass.states` via `get_energy_data()`/`get_metrics_data()`, secondaries are aggregated → published to `Q/{id}/SENSOR`. The library owns the cadence; the integration has no timer of its own. Publishing starts once Home Assistant has started (`async_at_started`), because states that do not exist yet during boot would read as 0. The provider returns `(None, None)` while the primary's core entities (`AVAILABILITY_ENTITIES` per adapter) are unavailable, and the timers are stopped on `EVENT_HOMEASSISTANT_STOP`, so zeros are never sent for missing data.
+2. **Inbound from Qilowatt**: Commands arrive on `Q/{id}/cmnd/backlog` as `WORKMODE {...}` → `InverterDevice.handle_command()` parses to `WorkModeCommand` → callback dispatches to HA sensors via `async_dispatcher_send`. The client also keeps the command as `last_command`, which the sensors read when they are added, since at startup the command can arrive before they subscribe
 
 ### WORKMODE Commands
 

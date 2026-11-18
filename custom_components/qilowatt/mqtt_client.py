@@ -3,9 +3,10 @@
 import asyncio
 import logging
 
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
 from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.helpers.start import async_at_started
 from homeassistant.const import __version__ as HA_VERSION
 from homeassistant.loader import async_get_loaded_integration
 
@@ -125,6 +126,14 @@ class MQTTClient:
 
         self.qilowatt_client = None  # Will be initialized later
 
+        # Latest WORKMODE command, read by sensors added after it arrived
+        self.last_command: WorkModeCommand | None = None
+
+        # Set once the client has been stopped (unload, HA shutdown, or the
+        # library giving up), so a start deferred until Home Assistant has
+        # started cannot bring the publishing timers back afterwards.
+        self._stopped = False
+
         # Initialize the primary inverter
         inverter_class = get_inverter_class(self.inverter_model)
         self.inverter = inverter_class(self.hass, config_entry)
@@ -200,13 +209,31 @@ class MQTTClient:
             ) from err
 
         # The library owns the publish cadence: its sensor timer fires exactly
-        # every 10 s and pulls fresh data through the provider right before
+        # every 5 s and pulls fresh data through the provider right before
         # each publish. Registering the provider starts the timers.
+        #
+        # That waits until Home Assistant has started (immediately on a
+        # reload). While HA boots, the inverter integration has not created
+        # its states yet, and a missing state reads as 0. By the time HA has
+        # started, every registered entity has at least an "unavailable"
+        # state, which read_inverter_data() skips.
+        self.config_entry.async_on_unload(
+            async_at_started(self.hass, self._async_start_publishing)
+        )
+
+    @callback
+    def _async_start_publishing(self, _hass: HomeAssistant) -> None:
+        """Start the library's publishing timers, unless already stopped."""
+        if self._stopped:
+            return
         self.qw_device.set_data_provider(self.read_inverter_data)
 
     async def async_stop(self):
         """Stop the Qilowatt MQTT client and its publishing timers."""
         _LOGGER.debug("Stopping Qilowatt MQTT client")
+        # Before the first await: Home Assistant may finish starting while
+        # the blocking stops below run.
+        self._stopped = True
         if self.qilowatt_client:
             await self.hass.async_add_executor_job(self.qilowatt_client.disconnect)
         # disconnect() stops the timers too; this keeps it true if there was
@@ -214,14 +241,24 @@ class MQTTClient:
         await self.hass.async_add_executor_job(self.qw_device.stop_timers)
 
     def _on_command_received(self, command: WorkModeCommand):
-        """Handle the WORKMODE command received from the MQTT broker."""
+        """Handle the WORKMODE command received from the MQTT broker.
+
+        Runs on the MQTT network thread; the rest happens on the event loop.
+        """
         _LOGGER.debug("Received WORKMODE command: %s", command)
-        # Dispatch the command to Home Assistant using async_dispatcher_send
-        self.hass.loop.call_soon_threadsafe(
-            async_dispatcher_send,
-            self.hass,
-            f"{DOMAIN}_workmode_update_{self.inverter_id}",
-            command,
+        self.hass.loop.call_soon_threadsafe(self._async_handle_command, command)
+
+    def _async_handle_command(self, command: WorkModeCommand):
+        """Remember the command and dispatch it to the sensors (event loop).
+
+        The broker sends the current WORKMODE right after connecting, which at
+        HA startup is usually before the sensor platform has subscribed. The
+        sensors read last_command when they are added, so that command is not
+        lost and they do not sit at "unknown" until the next change.
+        """
+        self.last_command = command
+        async_dispatcher_send(
+            self.hass, f"{DOMAIN}_workmode_update_{self.inverter_id}", command
         )
 
     def _on_client_error(self, error: Exception):
@@ -229,7 +266,9 @@ class MQTTClient:
 
         Runs on the MQTT network thread. For rejected credentials, start a
         reauth flow so the user gets a repair prompt asking for new ones.
+        The library has already stopped its timers and will not reconnect.
         """
+        self._stopped = True
         if isinstance(error, AuthenticationError):
             _LOGGER.error(
                 "Qilowatt rejected the MQTT credentials for %s; asking for new ones",
@@ -297,7 +336,7 @@ class MQTTClient:
         """Return (energy, metrics) for an available inverter, else None.
 
         Availability is checked before the reads, so an inverter that is gone
-        is not read (and its fields not warned about) every 10 s, and again
+        is not read (and its fields not warned about) every 5 s, and again
         after them: the state machine is written from the event loop while
         this runs on the timer thread, and an entity going unavailable
         between the check and a read would otherwise turn into a 0 in the
